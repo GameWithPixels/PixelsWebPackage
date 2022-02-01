@@ -86,14 +86,14 @@ export const ConnectionEventReasonValues = {
 export type ConnectionEventReason =
   typeof ConnectionEventReasonValues[keyof typeof ConnectionEventReasonValues];
 
-/** Callable for a BLE peripheral connection event, with the reason. */
-export type ConnectionEventFunction = (
-  event: ConnectionEvent,
-  reason: ConnectionEventReason
-) => void;
+/** Type for "ConnectionEvent" events */
+export interface ConnectionEventData {
+  event: ConnectionEvent;
+  reason: ConnectionEventReason;
+}
 
-// Store Pixel instances to avoid creating more than one for the same device
-const _pixels = new Map<BluetoothDevice, Pixel>();
+/** List of {@link Pixel} events other than message types. */
+export type PixelEventName = "Message" | "ConnectionEvent";
 
 /**
  * Request user to select a Pixel to connect to.
@@ -101,7 +101,15 @@ const _pixels = new Map<BluetoothDevice, Pixel>();
  * @param connEv The connection event callback.
  * @returns A promise that resolves to a {@link Pixel} instance.
  */
-export async function requestPixel(connEv?: ConnectionEventFunction): Promise<Pixel> {
+export async function requestPixel(): Promise<Pixel> {
+  if (!navigator?.bluetooth?.requestDevice) {
+    throw {
+      name: "NotSupportedError",
+      message:
+        "Bluetooth is not available, check that you're running in a secure environment " +
+        "and that Web Bluetooth is enabled.",
+    };
+  }
   // Request user to select a Pixel
   const device = await navigator.bluetooth.requestDevice({
     filters: [{ services: [serviceUuid] }],
@@ -109,11 +117,14 @@ export async function requestPixel(connEv?: ConnectionEventFunction): Promise<Pi
   // Keep Pixel instances
   let pixel = _pixels.get(device);
   if (!pixel) {
-    pixel = new Pixel(device, connEv);
+    pixel = new Pixel(device);
     _pixels.set(device, pixel);
   }
   return pixel;
 }
+
+// Store Pixel instances to avoid creating more than one for the same device
+const _pixels = new Map<BluetoothDevice, Pixel>();
 
 /**
  * Represents a Pixel die.
@@ -121,13 +132,13 @@ export async function requestPixel(connEv?: ConnectionEventFunction): Promise<Pi
  * Call the {@link connect} method to initiate a connection.
  */
 export class Pixel {
+  // extends EventTarget
   private readonly _device: BluetoothDevice;
   private readonly _name: string;
   private readonly _eventTarget = new EventTarget();
   private readonly _connMtx = new Mutex();
   private _connected = false;
   private _reconnect = false;
-  private _connEv?: ConnectionEventFunction = undefined;
   private _session?: Session = undefined;
   private _info?: IAmADie = undefined;
 
@@ -154,17 +165,18 @@ export class Pixel {
   /**
    * Instantiates a Pixel from a Bluetooth device.
    * @param device The Bluetooth device to use.
-   * @param connEv The connection event callback.
    */
-  constructor(device: BluetoothDevice, connEv?: ConnectionEventFunction) {
+  constructor(device: BluetoothDevice) {
     this._device = device;
     if (!device.name) {
-      throw Error("Device has no name");
+      throw {
+        name: "NetworkError",
+        message: "Bluetooth device has no name",
+      };
     }
 
     // Store name and connection event handler
     this._name = device.name;
-    this._connEv = connEv;
 
     // Subscribe to disconnect event
     device.addEventListener("gattserverdisconnected", (/*ev: Event*/) => {
@@ -314,19 +326,26 @@ export class Pixel {
     }
   }
 
+  private getEventName(nameOrMsgType: PixelEventName | MessageType) {
+    if (typeof nameOrMsgType === "string") {
+      return nameOrMsgType;
+    } else {
+      return getMessageName(nameOrMsgType);
+    }
+  }
+
   /**
    * Register a callback to be invoked on receiving messages of a given type.
    * @param msgType The type of message to watch for.
    * @param callback The callback that will be invoked when a message of the given type is received.
    * @param options Usual event listener options.
    */
-  addMessageListener(
-    msgType: MessageType,
+  addEventListener(
+    nameOrMsgType: PixelEventName | MessageType,
     callback: EventListenerOrEventListenerObject | null,
     options?: AddEventListenerOptions | boolean
   ): void {
-    const name = getMessageName(msgType);
-    this._eventTarget.addEventListener(name, callback, options);
+    this._eventTarget.addEventListener(this.getEventName(nameOrMsgType), callback, options);
   }
 
   /**
@@ -335,13 +354,12 @@ export class Pixel {
    * @param callback The callback to unregister.
    * @param options Usual event listener options.
    */
-  removeMessageListener(
-    msgType: MessageType,
+  removeEventListener(
+    nameOrMsgType: PixelEventName | MessageType,
     callback: EventListenerOrEventListenerObject | null,
     options?: EventListenerOptions | boolean
   ): void {
-    const name = getMessageName(msgType);
-    this._eventTarget.removeEventListener(name, callback, options);
+    this._eventTarget.removeEventListener(this.getEventName(nameOrMsgType), callback, options);
   }
 
   /**
@@ -399,7 +417,7 @@ export class Pixel {
     if (isMessage(msg)) {
       console.log(msg);
     } else {
-      console.log(`[${new Date().toISOString()}] Pixel ${this._name}: ${msg}`);
+      console.log(`[Pixel ${this._name}] ${msg}`);
     }
   }
 
@@ -407,10 +425,12 @@ export class Pixel {
   private notifyConnEv(
     ev: ConnectionEvent,
     reason: ConnectionEventReason = ConnectionEventReasonValues.Success
-  ): void {
-    if (this._connEv) {
-      this._connEv(ev, reason);
-    }
+  ): boolean {
+    return this._eventTarget.dispatchEvent(
+      new CustomEvent<ConnectionEventData>("connectionEvent", {
+        detail: { event: ev, reason: reason },
+      })
+    );
   }
 
   // Get the session object, throws an error if invalid
@@ -436,10 +456,13 @@ export class Pixel {
           this.log(msgOrType);
         }
         // Dispatch generic message event
-        this._eventTarget.dispatchEvent(new CustomEvent("message", { detail: msgOrType }));
+        const options = {
+          detail: { message: msgOrType },
+        };
+        this._eventTarget.dispatchEvent(new CustomEvent("message", options));
         // Dispatch specific message event
         const name = getMessageName(msgOrType);
-        this._eventTarget.dispatchEvent(new CustomEvent(name, { detail: msgOrType }));
+        this._eventTarget.dispatchEvent(new CustomEvent(name, options));
       } else {
         this.log("Received invalid message!");
       }
@@ -452,14 +475,14 @@ export class Pixel {
   private waitForMsg(expectedMsgType: MessageType, timeoutMs = 5000): Promise<MessageOrType> {
     return new Promise((resolve, reject) => {
       const onMessage = (evt: Event) => {
-        const msgOrType = (evt as CustomEvent).detail as MessageOrType;
+        const msgOrType = (evt as CustomEvent).detail.message as MessageOrType;
         resolve(msgOrType);
       };
       setTimeout(() => {
-        this.removeMessageListener(expectedMsgType, onMessage);
+        this.removeEventListener(expectedMsgType, onMessage);
         reject(new Error("Timeout waiting on message"));
       }, timeoutMs);
-      this.addMessageListener(expectedMsgType, onMessage, { once: true });
+      this.addEventListener(expectedMsgType, onMessage, { once: true });
     });
   }
 

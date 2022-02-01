@@ -15,25 +15,25 @@ import {
   notifyCharacteristicUuid,
   writeCharacteristicUuid,
   requestPixel,
+  Pixel,
   ConnectionEventValues,
   ConnectionEvent,
   ConnectionEventReasonValues,
   ConnectionEventReason,
-  ConnectionEventFunction,
-  Pixel,
+  ConnectionEventData,
 } from "./Pixel";
 
 export {
   serviceUuid,
   notifyCharacteristicUuid,
   writeCharacteristicUuid,
+  requestPixel,
+  Pixel,
   ConnectionEventValues,
   ConnectionEvent,
   ConnectionEventReasonValues,
   ConnectionEventReason,
-  ConnectionEventFunction,
-  requestPixel,
-  Pixel,
+  ConnectionEventData,
 };
 
 import {
