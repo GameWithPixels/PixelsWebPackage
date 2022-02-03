@@ -10,9 +10,14 @@ using Bluetooth Low Energy.</p>
 for accessing Bluetooth.
 At the time of writing, only Chrome, Edge and Opera browsers have
 support for these APIs.</p>
-<p>Currently all testing is done with Chrome on Windows 10.
-If you&#39;re on Linux, you may need to first set this flag to enable the Web
-Bluetooth API: <code>chrome://flags/#enable-experimental-web-platform-features</code>.</p>
+<p>Currently all testing is done with the latest Chrome on Windows 10.</p>
+<p>If you&#39;re on Linux, you may need to first set this flag to enable the Web
+Bluetooth API:
+<code>chrome://flags/#enable-experimental-web-platform-features</code>.
+However be careful as it would be risky to browse the web whith this flag turned on
+as it enables many other experimental web platform features.</p>
+<p>Starting with Chrome version 100, there will be a safer flag to use:
+<code>chrome://flags/#enable-web-bluetooth</code>.</p>
 <p>Please open a <a href="https://github.com/GameWithPixels/PixelsWebPackage/issues">ticket</a>
 in GitHub if you&#39;re having any issue.</p>
 <p>This package is based on <a href="https://github.com/tomchen/example-typescript-package">https://github.com/tomchen/example-typescript-package</a>.</p>
