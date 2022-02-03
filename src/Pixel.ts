@@ -92,8 +92,8 @@ export interface ConnectionEventData {
   reason: ConnectionEventReason;
 }
 
-/** List of {@link Pixel} events other than message types. */
-export type PixelEventName = "Message" | "ConnectionEvent";
+/** List of {@link Pixel} events other than message names (values of {@link MessageType}). */
+export type PixelEventName = "message" | "connectionEvent";
 
 /**
  * Request user to select a Pixel to connect to.
