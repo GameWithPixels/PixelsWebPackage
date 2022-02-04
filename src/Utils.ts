@@ -1,40 +1,59 @@
-// A note about enums:
-// Typescript documentation recommends using "as const" over "enum"
-// https://www.typescriptlang.org/docs/handbook/enums.html#objects-vs-enums
+/**
+ * Various utilities functions and classes.
+ */
 
 let _enumValue = 0;
-export function enumVal(value?: number): number {
-  if (value !== undefined) {
-    _enumValue = value;
+
+/**
+ * Number generator for enums.
+ *
+ * A note about enums:
+ * Typescript documentation recommends using "as const" over "enum".
+ * See https://www.typescriptlang.org/docs/handbook/enums.html#objects-vs-enums
+ */
+export function enumVal(initialValue?: number): number {
+  if (initialValue !== undefined) {
+    _enumValue = initialValue;
   }
   return _enumValue++;
 }
 
-// Parameters for exponentialBackOff
+/** Parameters for {@link exponentialBackOff}. */
 export type ExponentialBackOffParams = {
   retries: number;
   delay: number;
-  toTry: () => Promise<unknown>;
-  success?: (result: unknown) => void;
-  fail?: (error: unknown) => void;
+  executor: () => Promise<unknown>;
+  resolved?: (result: unknown) => void;
+  failed?: (error: unknown) => void;
 };
 
-// This function keeps calling "toTry" until promise resolves or has
-// retried "retries" number of times. First retry has a delay of "delay" seconds.
-// "success" is called upon success.
-// See auto-reconnect code from Google:
-// https://googlechrome.github.io/samples/web-bluetooth/automatic-reconnect-async-await.html
+/**
+ * This function keeps calling the executor until the promise it returns has resolved
+ * or it has reached the maximum number or retries.
+ * A retry is attempted after getting an exception from the executor and once past the given
+ * delay (starting at the time of the exception).
+ *
+ * See auto-reconnect code from Google:
+ * https://googlechrome.github.io/samples/web-bluetooth/automatic-reconnect-async-await.html
+ *
+ * @param retries Maximum number of retries.
+ * @param delay Delay in seconds between getting an exception and attempting a retry.
+ * @param executor The function to run. It should return a promise and raise an exception
+ *                 if there unsuccessful.
+ * @param resolved Called with the value returned by the resolved promise.
+ * @param failed Called all retries have failed.
+ */
 export async function exponentialBackOff({
   retries,
   delay,
-  toTry,
-  success = undefined,
-  fail = undefined,
+  executor,
+  resolved = undefined,
+  failed = undefined,
 }: ExponentialBackOffParams): Promise<void> {
   try {
-    const result = await toTry();
-    if (success) {
-      success(result);
+    const result = await executor();
+    if (resolved) {
+      resolved(result);
     }
   } catch (error) {
     if (retries !== 0) {
@@ -44,18 +63,22 @@ export async function exponentialBackOff({
       await exponentialBackOff({
         retries: retries - 1,
         delay: delay * 2,
-        toTry,
-        success,
-        fail,
+        executor,
+        resolved,
+        failed,
       });
-    } else if (fail) {
+    } else if (failed) {
       //console.log(`Got error ${error}`);
-      fail(error);
+      failed(error);
     }
   }
 }
 
-// https://spin.atomicobject.com/2018/09/10/javascript-concurrency/
+/**
+ * A Mutex class using Promises.
+ *
+ * See https://spin.atomicobject.com/2018/09/10/javascript-concurrency/
+ */
 export class Mutex {
   private mutex = Promise.resolve();
 

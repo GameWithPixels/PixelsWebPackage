@@ -40,7 +40,7 @@ Here is simple code example:
 
 ```TypeScript
 // Ask user to select a Pixel
-const pixel = await requestPixel();
+const pixel = await Pixel.requestPixel();
 log('Connecting...')
 await pixel.connect();
 
@@ -52,9 +52,11 @@ log(`=> battery: ${battery.level}, ${battery.voltage}v`);
 const rssi = await pixel.getRssi();
 
 // Add listener to get notified when the Pixel roll state changes
-pixel.addMessageListener(MessageTypeValues.RollState, (evt: Event) => {
-    const msg = (evt as CustomEvent).detail as RollState
+pixel.addEventListener("messageRollState", (ev: CustomEvent<MessageOrType>) => {
+// Or: pixel.addMessageListener(MessageTypeValues.RollState, (ev: CustomEvent<MessageOrType>) => {
+    const msg = ev.detail as RollState;
     log(`=> roll state: ${msg.state}, face ${msg.face}`);
+}
 ```
 
 ## Module documentation
