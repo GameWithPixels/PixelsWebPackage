@@ -116,11 +116,11 @@ export function isMessage(obj: unknown): obj is Message {
  * @param msgOrType A message or a message type value.
  * @returns The message name.
  */
-export function getMessageName(msgOrType: MessageOrType): string {
+export function getMessageName(msgOrType: MessageOrType): keyof typeof MessageTypeValues {
   const msgType = getMessageType(msgOrType);
   for (const [key, value] of Object.entries(MessageTypeValues)) {
     if (value === msgType) {
-      return key;
+      return key as keyof typeof MessageTypeValues;
     }
   }
   throw Error(`${msgType} is not a value in ${MessageTypeValues}`);

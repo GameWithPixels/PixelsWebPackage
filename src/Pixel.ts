@@ -92,50 +92,59 @@ export interface ConnectionEventData {
   reason: ConnectionEventReason;
 }
 
-/** List of {@link Pixel} events other than message names (values of {@link MessageType}). */
-export type PixelEventName = "message" | "connectionEvent";
-
-/**
- * Request user to select a Pixel to connect to.
- * Pixels instances are kept and returned if the same die is selected again.
- * @param connEv The connection event callback.
- * @returns A promise that resolves to a {@link Pixel} instance.
- */
-export async function requestPixel(): Promise<Pixel> {
-  if (!navigator?.bluetooth?.requestDevice) {
-    throw {
-      name: "NotSupportedError",
-      message:
-        "Bluetooth is not available, check that you're running in a secure environment " +
-        "and that Web Bluetooth is enabled.",
-    };
-  }
-  // Request user to select a Pixel
-  const device = await navigator.bluetooth.requestDevice({
-    filters: [{ services: [serviceUuid] }],
-  });
-  // Keep Pixel instances
-  let pixel = _pixels.get(device);
-  if (!pixel) {
-    pixel = new Pixel(device);
-    _pixels.set(device, pixel);
-  }
-  return pixel;
+/** Event map for {@link Pixel} class. */
+export interface PixelEventMap {
+  _: Event; //TODO seems needed for Typescript to have the first item mapped to an Event
+  message: CustomEvent<MessageOrType>;
+  connectionEvent: CustomEvent<ConnectionEventData>;
 }
 
-// Store Pixel instances to avoid creating more than one for the same device
-const _pixels = new Map<BluetoothDevice, Pixel>();
+//TODO
+interface PixelCustomEventMap {
+  message: MessageOrType;
+  connectionEvent: ConnectionEventData;
+}
 
 /**
  * Represents a Pixel die.
  * Most of its methods require that the instance is connected to the Pixel device.
  * Call the {@link connect} method to initiate a connection.
  */
-export class Pixel {
-  // extends EventTarget
+export class Pixel extends EventTarget {
+  // Store Pixel instances to avoid creating more than one for the same device
+  static _pixels = new Map<BluetoothDevice, Pixel>();
+
+  /**
+   * Request user to select a Pixel to connect to.
+   * Pixels instances are kept and returned if the same die is selected again.
+   * @param connEv The connection event callback.
+   * @returns A promise that resolves to a {@link Pixel} instance.
+   */
+  static async requestPixel(): Promise<Pixel> {
+    if (!navigator?.bluetooth?.requestDevice) {
+      throw {
+        name: "NotSupportedError",
+        message:
+          "Bluetooth is not available, check that you're running in a secure environment " +
+          "and that Web Bluetooth is enabled.",
+      };
+    }
+    // Request user to select a Pixel
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [serviceUuid] }],
+    });
+    // Keep Pixel instances
+    let pixel = Pixel._pixels.get(device);
+    if (!pixel) {
+      pixel = new Pixel(device);
+      Pixel._pixels.set(device, pixel);
+    }
+    return pixel;
+  }
+
+  // Private members
   private readonly _device: BluetoothDevice;
   private readonly _name: string;
-  private readonly _eventTarget = new EventTarget();
   private readonly _connMtx = new Mutex();
   private _connected = false;
   private _reconnect = false;
@@ -167,6 +176,7 @@ export class Pixel {
    * @param device The Bluetooth device to use.
    */
   constructor(device: BluetoothDevice) {
+    super();
     this._device = device;
     if (!device.name) {
       throw {
@@ -196,7 +206,7 @@ export class Pixel {
 
       // Reset internal state
       this._connected = false;
-      this._session = undefined; // Note: we shouldn't need to unsubscribe since we are got disconnected anyways
+      this._session = undefined; // Note: we shouldn't need to unsubscribe since we got disconnected anyways
       this._info = undefined;
 
       // Notify disconnection
@@ -300,12 +310,12 @@ export class Pixel {
     await exponentialBackOff({
       retries: autoReconnect ? 4 : 0,
       delay: 2,
-      toTry: doConnect,
-      success: () => {
+      executor: doConnect,
+      resolved: () => {
         // Restore auto reconnect flag ony if successful
         this._reconnect = autoReconnect;
       },
-      fail: (error) => {
+      failed: (error) => {
         this.log(`Failed to ${autoReconnect ? "re" : ""}connect with error: ${error}`);
         this.notifyConnEv(
           ConnectionEventValues.FailedToConnect,
@@ -326,40 +336,72 @@ export class Pixel {
     }
   }
 
-  private getEventName(nameOrMsgType: PixelEventName | MessageType) {
-    if (typeof nameOrMsgType === "string") {
-      return nameOrMsgType;
-    } else {
-      return getMessageName(nameOrMsgType);
-    }
+  addEventListener<K extends keyof PixelEventMap>(
+    type: K,
+    listener: (this: Pixel, ev: PixelEventMap[K]) => void,
+    options?: boolean | AddEventListenerOptions
+  ): void;
+  addEventListener(
+    type: `message${keyof typeof MessageTypeValues}`,
+    listener: (this: Pixel, ev: CustomEvent<MessageOrType>) => void,
+    options?: boolean | AddEventListenerOptions
+  ): void;
+  addEventListener(
+    type: string,
+    listener: (this: Pixel, ev: CustomEvent) => void,
+    options?: boolean | AddEventListenerOptions
+  ): void {
+    super.addEventListener(type, listener as EventListener, options);
+  }
+
+  removeEventListener<K extends keyof PixelEventMap>(
+    type: K,
+    listener: (this: Pixel, ev: PixelEventMap[K]) => void,
+    options?: boolean | EventListenerOptions
+  ): void;
+  removeEventListener(
+    type: `message${keyof typeof MessageTypeValues}`,
+    listener: (this: Pixel, ev: CustomEvent<MessageOrType>) => void,
+    options?: boolean | AddEventListenerOptions
+  ): void;
+  removeEventListener(
+    type: string,
+    listener: (this: Pixel, ev: CustomEvent) => void,
+    options?: boolean | EventListenerOptions
+  ): void {
+    super.removeEventListener(type, listener as EventListener, options);
   }
 
   /**
-   * Register a callback to be invoked on receiving messages of a given type.
+   * Register a listener to be invoked on receiving messages of a given type.
+   * This helper method calls {@link addEventListener}.
+   *
    * @param msgType The type of message to watch for.
-   * @param callback The callback that will be invoked when a message of the given type is received.
+   * @param listener The listener that will be invoked when a message of the given type is received.
    * @param options Usual event listener options.
    */
-  addEventListener(
-    nameOrMsgType: PixelEventName | MessageType,
-    callback: EventListenerOrEventListenerObject | null,
+  addMessageListener(
+    msgType: MessageType,
+    listener: (this: Pixel, ev: CustomEvent<MessageOrType>) => void,
     options?: AddEventListenerOptions | boolean
   ): void {
-    this._eventTarget.addEventListener(this.getEventName(nameOrMsgType), callback, options);
+    this.addEventListener(`message${getMessageName(msgType)}`, listener, options);
   }
 
   /**
-   * Unregister a callback invoked on receiving messages of the same type and options.
+   * Unregister a listener invoked on receiving messages of the same type and options.
+   * This helper method calls {@link removeEventListener}.
+   *
    * @param msgType The type of message to watch for.
-   * @param callback The callback to unregister.
+   * @param listener The listener to unregister.
    * @param options Usual event listener options.
    */
-  removeEventListener(
-    nameOrMsgType: PixelEventName | MessageType,
-    callback: EventListenerOrEventListenerObject | null,
+  removeMessageListener(
+    msgType: MessageType,
+    listener: (this: Pixel, ev: CustomEvent) => void,
     options?: EventListenerOptions | boolean
   ): void {
-    this._eventTarget.removeEventListener(this.getEventName(nameOrMsgType), callback, options);
+    this.removeEventListener(`message${getMessageName(msgType)}`, listener, options);
   }
 
   /**
@@ -421,16 +463,20 @@ export class Pixel {
     }
   }
 
+  // Type-safe dispatch
+  private dispatchCustomEv<K extends keyof PixelCustomEventMap>(
+    type: K,
+    data: PixelCustomEventMap[K]
+  ): boolean {
+    return super.dispatchEvent(new CustomEvent<PixelCustomEventMap[K]>(type, { detail: data }));
+  }
+
   // Notify of connection event
   private notifyConnEv(
-    ev: ConnectionEvent,
+    connEv: ConnectionEvent,
     reason: ConnectionEventReason = ConnectionEventReasonValues.Success
   ): boolean {
-    return this._eventTarget.dispatchEvent(
-      new CustomEvent<ConnectionEventData>("connectionEvent", {
-        detail: { event: ev, reason: reason },
-      })
-    );
+    return this.dispatchCustomEv("connectionEvent", { event: connEv, reason: reason });
   }
 
   // Get the session object, throws an error if invalid
@@ -456,13 +502,10 @@ export class Pixel {
           this.log(msgOrType);
         }
         // Dispatch generic message event
-        const options = {
-          detail: { message: msgOrType },
-        };
-        this._eventTarget.dispatchEvent(new CustomEvent("message", options));
+        this.dispatchCustomEv("message", msgOrType);
         // Dispatch specific message event
-        const name = getMessageName(msgOrType);
-        this._eventTarget.dispatchEvent(new CustomEvent(name, options));
+        const name = `message${getMessageName(msgOrType)}`;
+        this.dispatchEvent(new CustomEvent(name, { detail: msgOrType }));
       } else {
         this.log("Received invalid message!");
       }
@@ -474,15 +517,14 @@ export class Pixel {
   // Helper method that waits for a message from Pixel
   private waitForMsg(expectedMsgType: MessageType, timeoutMs = 5000): Promise<MessageOrType> {
     return new Promise((resolve, reject) => {
-      const onMessage = (evt: Event) => {
-        const msgOrType = (evt as CustomEvent).detail.message as MessageOrType;
-        resolve(msgOrType);
+      const onMessage = (evt: CustomEvent<MessageOrType>) => {
+        resolve(evt.detail);
       };
       setTimeout(() => {
-        this.removeEventListener(expectedMsgType, onMessage);
+        this.removeMessageListener(expectedMsgType, onMessage);
         reject(new Error("Timeout waiting on message"));
       }, timeoutMs);
-      this.addEventListener(expectedMsgType, onMessage, { once: true });
+      this.addMessageListener(expectedMsgType, onMessage, { once: true });
     });
   }
 
