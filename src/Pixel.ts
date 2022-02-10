@@ -26,7 +26,24 @@ export const notifyCharacteristicUuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 export const writeCharacteristicUuid = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
 /**
- *  Peripheral connection events.
+ * Available dice types.
+ * @enum
+ */
+export const DiceTypeValues = {
+  D4: "d4",
+  D6: "d6",
+  D8: "d8",
+  D10: "d10",
+  D00: "d00",
+  D12: "d12",
+  D20: "d20",
+} as const;
+
+/** The "enum" type for  {@link DiceTypeValues}. */
+export type DiceType = typeof DiceTypeValues[keyof typeof DiceTypeValues];
+
+/**
+ * Peripheral connection events.
  * @enum
  */
 export const ConnectionEventValues = {
@@ -94,7 +111,6 @@ export interface ConnectionEventData {
 
 /** Event map for {@link Pixel} class. */
 export interface PixelEventMap {
-  _: Event; //TODO seems needed for Typescript to have the first item mapped to an Event
   message: CustomEvent<MessageOrType>;
   connectionEvent: CustomEvent<ConnectionEventData>;
 }
@@ -103,6 +119,39 @@ export interface PixelEventMap {
 interface PixelCustomEventMap {
   message: MessageOrType;
   connectionEvent: ConnectionEventData;
+}
+
+export interface Pixel extends EventTarget {
+  addEventListener<K extends keyof PixelEventMap>(
+    type: K,
+    listener: (this: Pixel, ev: PixelEventMap[K]) => void,
+    options?: boolean | AddEventListenerOptions
+  ): void;
+  addEventListener(
+    type: `message${keyof typeof MessageTypeValues}`,
+    listener: (this: Pixel, ev: CustomEvent<MessageOrType>) => void,
+    options?: boolean | AddEventListenerOptions
+  ): void;
+  // addEventListener(
+  //   type: string,
+  //   listener: EventListenerOrEventListenerObject,
+  //   options?: boolean | AddEventListenerOptions
+  // ): void;
+  removeEventListener<K extends keyof PixelEventMap>(
+    type: K,
+    listener: (this: Pixel, ev: PixelEventMap[K]) => void,
+    options?: boolean | EventListenerOptions
+  ): void;
+  removeEventListener(
+    type: `message${keyof typeof MessageTypeValues}`,
+    listener: (this: Pixel, ev: CustomEvent<MessageOrType>) => void,
+    options?: boolean | AddEventListenerOptions
+  ): void;
+  // removeEventListener(
+  //   type: string,
+  //   listener: EventListenerOrEventListenerObject,
+  //   options?: boolean | EventListenerOptions
+  // ): void;
 }
 
 /**
@@ -147,6 +196,7 @@ export class Pixel extends EventTarget {
   private readonly _name: string;
   private readonly _connMtx = new Mutex();
   private _connected = false;
+  private _connecting = false;
   private _reconnect = false;
   private _session?: Session = undefined;
   private _info?: IAmADie = undefined;
@@ -161,6 +211,10 @@ export class Pixel extends EventTarget {
     return this._connected && (this._device.gatt?.connected ?? false);
   }
 
+  get initializing(): boolean {
+    return this._connecting || (this.connected && !this.ready);
+  }
+
   /** Indicates whether the Pixel is ready. */
   get ready(): boolean {
     return this.connected && this._info !== undefined;
@@ -169,6 +223,10 @@ export class Pixel extends EventTarget {
   /** Gets the Pixel information, or undefined if not connected. */
   get info(): IAmADie | undefined {
     return this._info;
+  }
+
+  get type(): DiceType | undefined {
+    return this.info ? DiceTypeValues.D20 : undefined;
   }
 
   /**
@@ -248,10 +306,14 @@ export class Pixel extends EventTarget {
       if (server) {
         if (!server.connected) {
           // Attempt to connect.
-          this.log("Connecting");
-          this.notifyConnEv(ConnectionEventValues.Connecting);
-          await server.connect();
-
+          this._connecting = true;
+          try {
+            this.log("Connecting");
+            this.notifyConnEv(ConnectionEventValues.Connecting);
+            await server.connect();
+          } finally {
+            this._connecting = false;
+          }
           // Notify connected
           this._connected = true;
           this.notifyConnEv(ConnectionEventValues.Connected);
@@ -272,22 +334,25 @@ export class Pixel extends EventTarget {
               writeCharacteristic,
               this.log.bind(this)
             );
+
             this.log("Subscribing");
             await this._session.subscribe((dv: DataView) => this.onValueChanged(dv));
 
             // Identify Pixel
-            if (this._session) {
-              this.log("Waiting on identification message");
-              const response = await this.sendAndWaitForMsg(
-                MessageTypeValues.WhoAreYou,
-                MessageTypeValues.IAmADie
-              );
+            this.log("Waiting on identification message");
+            const response = await this.sendAndWaitForMsg(
+              MessageTypeValues.WhoAreYou,
+              MessageTypeValues.IAmADie
+            );
 
-              // Check that we weren't disconnected
-              if (this.connected) {
-                this._info = info = response as IAmADie;
-              }
+            if (!this._session) {
+              throw {
+                name: "NetworkError",
+                message: "Got disconnected while identifying",
+              };
             }
+
+            this._info = info = response as IAmADie;
           }
         });
         if (info && this._info === info) {
@@ -334,42 +399,6 @@ export class Pixel extends EventTarget {
       this._connected = false;
       server.disconnect();
     }
-  }
-
-  addEventListener<K extends keyof PixelEventMap>(
-    type: K,
-    listener: (this: Pixel, ev: PixelEventMap[K]) => void,
-    options?: boolean | AddEventListenerOptions
-  ): void;
-  addEventListener(
-    type: `message${keyof typeof MessageTypeValues}`,
-    listener: (this: Pixel, ev: CustomEvent<MessageOrType>) => void,
-    options?: boolean | AddEventListenerOptions
-  ): void;
-  addEventListener(
-    type: string,
-    listener: (this: Pixel, ev: CustomEvent) => void,
-    options?: boolean | AddEventListenerOptions
-  ): void {
-    super.addEventListener(type, listener as EventListener, options);
-  }
-
-  removeEventListener<K extends keyof PixelEventMap>(
-    type: K,
-    listener: (this: Pixel, ev: PixelEventMap[K]) => void,
-    options?: boolean | EventListenerOptions
-  ): void;
-  removeEventListener(
-    type: `message${keyof typeof MessageTypeValues}`,
-    listener: (this: Pixel, ev: CustomEvent<MessageOrType>) => void,
-    options?: boolean | AddEventListenerOptions
-  ): void;
-  removeEventListener(
-    type: string,
-    listener: (this: Pixel, ev: CustomEvent) => void,
-    options?: boolean | EventListenerOptions
-  ): void {
-    super.removeEventListener(type, listener as EventListener, options);
   }
 
   /**
@@ -479,18 +508,6 @@ export class Pixel extends EventTarget {
     return this.dispatchCustomEv("connectionEvent", { event: connEv, reason: reason });
   }
 
-  // Get the session object, throws an error if invalid
-  private checkAndGetSession(): Session {
-    if (this._session) {
-      return this._session;
-    } else {
-      throw {
-        name: "NetworkError",
-        message: "Pixel not ready",
-      };
-    }
-  }
-
   // Callback on notify characteristic value change
   private onValueChanged(dataView: DataView) {
     try {
@@ -534,7 +551,14 @@ export class Pixel extends EventTarget {
     expectedMsgType: MessageType,
     timeoutMs = 5000
   ): Promise<MessageOrType> {
-    const session = this.checkAndGetSession();
+    // Get the session object, throws an error if invalid
+    const session = this._session;
+    if (!session) {
+      throw {
+        name: "NetworkError",
+        message: "Pixel not ready",
+      };
+    }
     const result = await Promise.all([
       this.waitForMsg(expectedMsgType, timeoutMs),
       session.send(msgOrTypeToSend),

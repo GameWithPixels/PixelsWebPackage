@@ -14,24 +14,28 @@ import {
   serviceUuid,
   notifyCharacteristicUuid,
   writeCharacteristicUuid,
-  Pixel,
+  DiceTypeValues,
+  DiceType,
   ConnectionEventValues,
   ConnectionEvent,
   ConnectionEventReasonValues,
   ConnectionEventReason,
   ConnectionEventData,
+  Pixel,
 } from "./Pixel";
 
 export {
   serviceUuid,
   notifyCharacteristicUuid,
   writeCharacteristicUuid,
-  Pixel,
+  DiceTypeValues,
+  DiceType,
   ConnectionEventValues,
   ConnectionEvent,
   ConnectionEventReasonValues,
   ConnectionEventReason,
   ConnectionEventData,
+  Pixel,
 };
 
 import {
