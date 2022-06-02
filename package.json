@@ -1,5 +1,5 @@
 {
-  "name": "pixels-library",
+  "name": "@systemic-games/pixels-library",
   "version": "0.0.2",
   "description": "Connect to Pixels dice using Web Bluetooth.",
   "main": "dist/cjs/index.js",
@@ -36,7 +36,7 @@
     "bluetooth",
     "bluetoothle"
   ],
-  "author": "Systemic Games",
+  "author": "Systemic Games (https://gamewithpixels.com)",
   "license": "MIT",
   "homepage": "https://github.com/GameWithPixels/PixelsWebPackage",
   "repository": {
