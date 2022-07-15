@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-types */
 import "reflect-metadata";
 
@@ -82,7 +83,6 @@ export class SerializationError extends Error {}
 
 function forEachSerializableProp(
   obj: object,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   callback: (prop: SerializableProperty, value: any) => void
 ) {
   const props = getSerializableProperties(obj);
@@ -179,16 +179,24 @@ function internalDeserialize<T extends object>(
   dataView: DataView,
   byteOffset = 0
 ): [DataView, number] {
-  function setProp<T>(
+  function setProp(
     obj: object,
     prop: SerializableProperty,
-    value: T,
-    prevValue: T
+    value: any,
+    prevValue: any
   ) {
-    assert(
-      typeof value === typeof prevValue,
-      `Incorrect value type ${typeof value} but was expecting ${typeof prevValue}`
-    );
+    if (
+      typeof prevValue === "boolean" &&
+      (typeof value === "number" || typeof value === "bigint")
+    ) {
+      // Convert number to boolean
+      value = Boolean(value);
+    } else {
+      assert(
+        typeof value === typeof prevValue,
+        `Incorrect value type, got ${typeof value} but was expecting ${typeof prevValue}`
+      );
+    }
     //@ts-expect-error Accessing property on unknown type
     obj[prop.propertyKey] = value;
   }
@@ -239,7 +247,7 @@ export function serialize<T extends object>(
     );
     assert(
       byteOffset === dataView.buffer.byteLength,
-      `Incorrect offset after serialization ${byteOffset} but was expecting ${dataView.buffer.byteLength}`
+      `Incorrect offset after serialization, got ${byteOffset} but was expecting ${dataView.buffer.byteLength}`
     );
     return [dataView, byteOffset];
   } else {

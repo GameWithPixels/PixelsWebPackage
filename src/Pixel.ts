@@ -1,8 +1,17 @@
+import Color from "./animations/Color";
+import { toColor32 } from "./animations/Color32Utils";
+import DataSet from "./animations/DataSet";
+import {
+  ackMessageTimeout,
+  MaxMessageSize,
+  pixelNotifyCharacteristicUuid,
+  pixelServiceUuid,
+  pixelWriteCharacteristicUuid,
+} from "./Constants";
 import {
   MessageTypeValues,
   MessageType,
   MessageOrType,
-  getMessageType,
   isMessage,
   getMessageName,
   serializeMessage,
@@ -12,18 +21,37 @@ import {
   BatteryLevel,
   Rssi,
   Blink,
+  PixelMessage,
+  getMessageType,
+  TransferAnimationSet,
+  TransferAnimationSetAck,
+  TransferTestAnimationSet,
+  TransferTestAnimationSetAck,
+  TransferInstantAnimationsSetAckTypeValues,
+  TransferInstantAnimationSet,
+  TransferInstantAnimationSetAck,
+  BulkSetup,
+  BulkData,
+  PlayInstantAnimation,
 } from "./Messages";
+import { byteSizeOf } from "./Serializable";
 
-import { exponentialBackOff, Mutex, safeAssign } from "./utils";
+import {
+  assert,
+  exponentialBackOff,
+  Mutex,
+  safeAssign,
+  waitUntil,
+} from "./utils";
 
-/** Pixel dice service UUID. */
-export const serviceUuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+function toUuid128bits(shortUuid: number): string {
+  return (
+    (shortUuid & 0xffffffff).toString(16).padStart(8, "0") +
+    "-0000-1000-8000-00805f9b34fb"
+  );
+}
 
-/** Pixel dice notify characteristic UUID. */
-export const notifyCharacteristicUuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-
-/** Pixel dice write characteristic UUID. */
-export const writeCharacteristicUuid = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+const dfuServiceUuid = toUuid128bits(0xfe59);
 
 /**
  * Available dice types.
@@ -181,7 +209,7 @@ export class Pixel extends EventTarget {
     }
     // Request user to select a Pixel
     const device = await navigator.bluetooth.requestDevice({
-      filters: [{ services: [serviceUuid] }],
+      filters: [{ services: [pixelServiceUuid] }],
     });
     // Keep Pixel instances
     let pixel = Pixel._pixels.get(device);
@@ -326,12 +354,12 @@ export class Pixel extends EventTarget {
           if (!this._session) {
             // Create session
             this.log("Getting service and characteristics");
-            const service = await server.getPrimaryService(serviceUuid);
+            const service = await server.getPrimaryService(pixelServiceUuid);
             const notifyCharacteristic = await service.getCharacteristic(
-              notifyCharacteristicUuid
+              pixelNotifyCharacteristicUuid
             );
             const writeCharacteristic = await service.getCharacteristic(
-              writeCharacteristicUuid
+              pixelWriteCharacteristicUuid
             );
             this._session = new Session(
               service,
@@ -347,7 +375,7 @@ export class Pixel extends EventTarget {
 
             // Identify Pixel
             this.log("Waiting on identification message");
-            const response = await this.sendAndWaitForMsg(
+            const response = await this.sendAndWaitForResponse(
               MessageTypeValues.WhoAreYou,
               MessageTypeValues.IAmADie
             );
@@ -462,11 +490,62 @@ export class Pixel extends EventTarget {
   }
 
   /**
+   * Send a message and wait for a specific reply.
+   * @param msgOrTypeToSend
+   * @param expectedMsgType
+   * @param timeoutMs
+   * @returns
+   */
+  async sendAndWaitForResponse(
+    msgOrTypeToSend: MessageOrType,
+    expectedMsgType: MessageType,
+    timeoutMs = 5000
+  ): Promise<MessageOrType> {
+    // Get the session object, throws an error if invalid
+    const session = this._session;
+    if (!session) {
+      throw {
+        name: "NetworkError",
+        message: "Pixel not ready",
+      };
+    }
+    const result = await Promise.all([
+      this.waitForMsg(expectedMsgType, timeoutMs),
+      session.send(msgOrTypeToSend),
+    ]);
+    return result[0];
+  }
+
+  /**
+   * Send a message and wait for a specific reply.
+   * @param msgOrType
+   * @param responseMsgClass
+   * @returns
+   */
+  async sendAndWaitForResponseObj<T extends PixelMessage>(
+    msgOrType: MessageOrType,
+    responseMsgClass: new () => T
+  ): Promise<T> {
+    const msg = await this.sendAndWaitForResponse(
+      msgOrType,
+      getMessageType(responseMsgClass)
+    );
+    return msg as T;
+  }
+
+  /**
+   *
+   */
+  async startCalibration(): Promise<void> {
+    await this._session?.send(MessageTypeValues.Calibrate);
+  }
+
+  /**
    * Asynchronously retrieves the roll state.
    * @returns A promise revolving to an object with the roll state information.
    */
   async getRollState(): Promise<RollState> {
-    const response = await this.sendAndWaitForMsg(
+    const response = await this.sendAndWaitForResponse(
       MessageTypeValues.RequestRollState,
       MessageTypeValues.RollState
     );
@@ -478,7 +557,7 @@ export class Pixel extends EventTarget {
    * @returns A promise revolving to an object with the batter level information.
    */
   async getBatteryLevel(): Promise<BatteryLevel> {
-    const response = await this.sendAndWaitForMsg(
+    const response = await this.sendAndWaitForResponse(
       MessageTypeValues.RequestBatteryLevel,
       MessageTypeValues.BatteryLevel
     );
@@ -490,7 +569,7 @@ export class Pixel extends EventTarget {
    * @returns A promise revolving to the RSSI value, between 0 and 65535.
    */
   async getRssi(): Promise<number> {
-    const response = await this.sendAndWaitForMsg(
+    const response = await this.sendAndWaitForResponse(
       MessageTypeValues.RequestRssi,
       MessageTypeValues.Rssi
     );
@@ -504,13 +583,225 @@ export class Pixel extends EventTarget {
    * @param duration Total duration in milliseconds.
    * @returns A promise.
    */
-  async blink(color: number, count = 1, duration = 1000): Promise<void> {
+  async blink(color: Color, count = 1, duration = 1000): Promise<void> {
     const blinkMsg = safeAssign(new Blink(), {
-      color,
+      color: toColor32(color),
       count,
       duration,
     });
-    await this.sendAndWaitForMsg(blinkMsg, MessageTypeValues.BlinkFinished);
+    await this.sendAndWaitForResponse(
+      blinkMsg,
+      MessageTypeValues.BlinkFinished
+    );
+  }
+
+  async transferDataSet(dataSet: DataSet): Promise<void> {
+    const transferMsg = safeAssign(new TransferAnimationSet(), {
+      paletteSize: dataSet.animationBits.getPaletteSize(),
+      rgbKeyFrameCount: dataSet.animationBits.getRgbKeyframeCount(),
+      rgbTrackCount: dataSet.animationBits.getRgbTrackCount(),
+      keyFrameCount: dataSet.animationBits.getKeyframeCount(),
+      trackCount: dataSet.animationBits.getTrackCount(),
+      animationCount: dataSet.animations.length,
+      animationSize: dataSet.animations.reduce(
+        (acc, anim) => acc + byteSizeOf(anim),
+        0
+      ),
+      conditionCount: dataSet.conditions.length,
+      conditionSize: dataSet.conditions.reduce(
+        (acc, cond) => acc + byteSizeOf(cond),
+        0
+      ),
+      actionCount: dataSet.actions.length,
+      actionSize: dataSet.actions.reduce(
+        (acc, action) => acc + byteSizeOf(action),
+        0
+      ),
+      ruleCount: dataSet.rules.length,
+    });
+
+    const transferAck = await this.sendAndWaitForResponseObj(
+      transferMsg,
+      TransferAnimationSetAck
+    );
+    if (transferAck.result) {
+      // Upload data
+      const data = dataSet.toByteArray();
+      const hash = DataSet.computeHash(data);
+      const hashStr = (hash >>> 0).toString(16).toUpperCase();
+      this.log(
+        "Ready to receive dataset, " +
+          `byte array should be ${dataSet.computeDataSetByteSize()} bytes ` +
+          `and hash 0x${hashStr}`
+      );
+
+      await this.uploadDataSet(
+        MessageTypeValues.TransferAnimationSetFinished,
+        data
+      );
+    } else {
+      throw new Error("Transfer refused, not enough memory");
+    }
+  }
+
+  async playTestAnimation(dataSet: DataSet): Promise<void> {
+    assert(dataSet.animations.length >= 1, "No animation in DataSet");
+
+    // Prepare the Pixel
+    const data = dataSet.toSingleAnimationByteArray();
+    const hash = DataSet.computeHash(data);
+    const prepareDie = safeAssign(new TransferTestAnimationSet(), {
+      paletteSize: dataSet.animationBits.getPaletteSize(),
+      rgbKeyFrameCount: dataSet.animationBits.getRgbKeyframeCount(),
+      rgbTrackCount: dataSet.animationBits.getRgbTrackCount(),
+      keyFrameCount: dataSet.animationBits.getKeyframeCount(),
+      trackCount: dataSet.animationBits.getTrackCount(),
+      animationSize: byteSizeOf(dataSet.animations[0]),
+      hash,
+    });
+
+    const resp = await this.sendAndWaitForResponseObj(
+      prepareDie,
+      TransferTestAnimationSetAck
+    );
+
+    switch (resp.ackType) {
+      case TransferInstantAnimationsSetAckTypeValues.Download:
+        {
+          // Upload data
+          const hashStr = (hash >>> 0).toString(16).toUpperCase();
+          this.log(
+            "Ready to receive test dataset, " +
+              `byte array should be: ${data.length} bytes ` +
+              `and hash 0x${hashStr}`
+          );
+          await this.uploadDataSet(
+            MessageTypeValues.TransferTestAnimationSetFinished,
+            data
+          );
+        }
+        break;
+
+      case TransferInstantAnimationsSetAckTypeValues.UpToDate:
+        // Nothing to do
+        this.log("Test animation is already up-to-date");
+        break;
+
+      default:
+        throw new Error(`Got unknown ackType: ${resp.ackType}`);
+    }
+  }
+
+  async transferInstantAnimations(dataSet: DataSet): Promise<void> {
+    assert(dataSet.animations.length >= 1, "No animation in DataSet");
+
+    // Prepare the Pixel
+    const data = dataSet.toAnimationsByteArray();
+    const hash = DataSet.computeHash(data);
+    const prepareDie = safeAssign(new TransferInstantAnimationSet(), {
+      paletteSize: dataSet.animationBits.getPaletteSize(),
+      rgbKeyFrameCount: dataSet.animationBits.getRgbKeyframeCount(),
+      rgbTrackCount: dataSet.animationBits.getRgbTrackCount(),
+      keyFrameCount: dataSet.animationBits.getKeyframeCount(),
+      trackCount: dataSet.animationBits.getTrackCount(),
+      animationCount: dataSet.animations.length,
+      animationSize: dataSet.animations.reduce(
+        (acc, anim) => acc + byteSizeOf(anim),
+        0
+      ),
+      hash,
+    });
+
+    const ack = await this.sendAndWaitForResponseObj(
+      prepareDie,
+      TransferInstantAnimationSetAck
+    );
+
+    switch (ack.ackType) {
+      case TransferInstantAnimationsSetAckTypeValues.Download:
+        {
+          // Upload data
+          const hashStr = (hash >>> 0).toString(16).toUpperCase();
+          this.log(
+            "Ready to receive instant animations, " +
+              `byte array should be: ${data.length} bytes ` +
+              `and hash 0x${hashStr}`
+          );
+          await this.uploadDataSet(
+            MessageTypeValues.TransferInstantAnimationSetFinished,
+            data
+          );
+        }
+        break;
+
+      case TransferInstantAnimationsSetAckTypeValues.UpToDate:
+        // Nothing to do
+        this.log("Instant animations are already up-to-date");
+        break;
+
+      default:
+        throw new Error(`Got unknown ackType: ${ack.ackType}`);
+    }
+  }
+
+  async playInstantAnimation(animIndex: number): Promise<void> {
+    const play = new PlayInstantAnimation();
+    play.animation = animIndex;
+    await this._session?.send(play);
+  }
+
+  private async uploadBulkData(
+    data: ArrayBuffer,
+    progressCallback?: (progress: number) => void
+  ): Promise<void> {
+    let remainingSize = data.byteLength;
+    this.log(`Sending ${remainingSize} bytes of bulk data`);
+    progressCallback?.(0);
+
+    // Send setup message
+    const setupMsg = new BulkSetup();
+    setupMsg.size = remainingSize;
+    await this.sendAndWaitForResponse(setupMsg, MessageTypeValues.BulkSetupAck);
+    this.log("Ready for receiving data");
+
+    // Then transfer data
+    let offset = 0;
+    while (remainingSize > 0) {
+      const dataMsg = new BulkData();
+      dataMsg.offset = offset;
+      dataMsg.size = Math.min(remainingSize, MaxMessageSize);
+      dataMsg.data = data.slice(offset, offset + dataMsg.size);
+
+      await this.sendAndWaitForResponse(dataMsg, MessageTypeValues.BulkDataAck);
+
+      remainingSize -= dataMsg.size;
+      offset += dataMsg.size;
+      progressCallback?.(offset / data.byteLength);
+    }
+
+    this.log("Finished sending bulk data");
+  }
+
+  private async uploadDataSet(
+    ackType: MessageType,
+    data: ArrayBuffer
+  ): Promise<void> {
+    let programmingFinished = false;
+    const onFinished = () => (programmingFinished = true);
+    this.addMessageListener(ackType, onFinished, { once: true });
+    try {
+      await this.uploadBulkData(data, (p) => this.log(`Upload progress: ${p}`));
+      this.log("Done sending dataset, waiting for Pixel to finish programming");
+
+      await waitUntil(() => programmingFinished, ackMessageTimeout);
+
+      if (!programmingFinished) {
+        throw Error("Timeout waiting on Pixel to confirm programming");
+      }
+      this.log("Programming done");
+    } finally {
+      this.removeMessageListener(ackType, onFinished);
+    }
   }
 
   // Log the given message prepended with a timestamp and the Pixel name
@@ -548,7 +839,7 @@ export class Pixel extends EventTarget {
     try {
       const msgOrType = deserializeMessage(dataView.buffer);
       if (msgOrType) {
-        this.log(`Received message of type ${getMessageType(msgOrType)}`);
+        this.log(`Received message ${getMessageName(msgOrType)}`);
         if (typeof msgOrType !== "number") {
           // Log message contents
           this.log(msgOrType);
@@ -562,7 +853,7 @@ export class Pixel extends EventTarget {
         this.log("Received invalid message!");
       }
     } catch (error) {
-      this.log("ValueChanged error: " + error);
+      this.log("CharacteristicValueChanged error: " + error);
     }
   }
 
@@ -581,27 +872,6 @@ export class Pixel extends EventTarget {
       }, timeoutMs);
       this.addMessageListener(expectedMsgType, onMessage, { once: true });
     });
-  }
-
-  // Helper method that sends a message and wait for a reply
-  private async sendAndWaitForMsg(
-    msgOrTypeToSend: MessageOrType,
-    expectedMsgType: MessageType,
-    timeoutMs = 5000
-  ): Promise<MessageOrType> {
-    // Get the session object, throws an error if invalid
-    const session = this._session;
-    if (!session) {
-      throw {
-        name: "NetworkError",
-        message: "Pixel not ready",
-      };
-    }
-    const result = await Promise.all([
-      this.waitForMsg(expectedMsgType, timeoutMs),
-      session.send(msgOrTypeToSend),
-    ]);
-    return result[0];
   }
 }
 
@@ -648,7 +918,7 @@ class Session {
 
   // Sends a message
   async send(msgOrType: MessageOrType, withoutResponse?: boolean) {
-    this.log(`Sending message of type ${getMessageType(msgOrType)}`);
+    this.log(`Sending message ${getMessageName(msgOrType)}`);
     const data = serializeMessage(msgOrType);
     const promise = withoutResponse
       ? this._write.writeValueWithoutResponse(data)

@@ -1,3 +1,4 @@
+import { MaxMessageSize } from "./Constants";
 import {
   deserialize,
   serializable,
@@ -5,8 +6,6 @@ import {
   serialize,
 } from "./Serializable";
 import { assert, enumValue } from "./utils";
-
-export const MaxDataSize = 100; //TODO move to constants
 
 /**
  * Lists all the Pixel dice message types.
@@ -244,6 +243,19 @@ export function deserializeMessage(buffer: ArrayBufferLike): MessageOrType {
 }
 
 /**
+ * Generic class representing any message without any data.
+ */
+export class GenericPixelMessage implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.IAmADie;
+
+  constructor(type: MessageType) {
+    this.type = type;
+  }
+}
+
+/**
  * Available combinations of Pixel designs and colors.
  * @enum
  */
@@ -266,16 +278,6 @@ export const PixelDesignAndColorValues = {
 /** The "enum" type for {@link PixelDesignAndColorValues}. */
 export type PixelDesignAndColor =
   typeof PixelDesignAndColorValues[keyof typeof PixelDesignAndColorValues];
-
-class GenericPixelMessage implements PixelMessage {
-  /** Type of the message. */
-  @serializable(1)
-  readonly type = MessageTypeValues.IAmADie;
-
-  constructor(type: MessageType) {
-    this.type = type;
-  }
-}
 
 /** Message send by a Pixel after receiving a "WhoAmI". */
 export class IAmADie implements PixelMessage {
@@ -364,7 +366,7 @@ export class BulkData implements PixelMessage {
   size = 0;
   @serializable(2)
   offset = 0;
-  @serializable(MaxDataSize) //TODO MaxDataSize - 4
+  @serializable(MaxMessageSize)
   data?: ArrayBufferLike;
 }
 
@@ -374,8 +376,7 @@ export class BulkDataAck implements PixelMessage {
   @serializable(1)
   readonly type = MessageTypeValues.BulkDataAck;
 
-  /** The . */
-  @serializable(2) //TODO no 16 bits alignment?
+  @serializable(2)
   offset = 0;
 }
 
@@ -420,7 +421,6 @@ export class TransferAnimationSetAck implements PixelMessage {
   @serializable(1)
   readonly type = MessageTypeValues.TransferAnimationSetAck;
 
-  /** The . */
   @serializable(1)
   result = 0;
 }
@@ -451,15 +451,15 @@ export class TransferTestAnimationSet implements PixelMessage {
 }
 
 /** Transfer animation ack values. */
-export const TransferInstantAnimSetAckTypeValues = {
+export const TransferInstantAnimationsSetAckTypeValues = {
   Download: enumValue(0),
   UpToDate: enumValue(),
   NoMemory: enumValue(),
 } as const;
 
-/** The "enum" type for {@link TransferInstantAnimSetAckTypeValues}. */
+/** The "enum" type for {@link TransferInstantAnimationsSetAckTypeValues}. */
 export type TransferInstantAnimationSetAckType =
-  typeof TransferInstantAnimSetAckTypeValues[keyof typeof TransferInstantAnimSetAckTypeValues];
+  typeof TransferInstantAnimationsSetAckTypeValues[keyof typeof TransferInstantAnimationsSetAckTypeValues];
 
 /** Message send by a Pixel after receiving a TransferTestAnimationSet request. */
 export class TransferTestAnimationSetAck implements PixelMessage {
@@ -469,7 +469,7 @@ export class TransferTestAnimationSetAck implements PixelMessage {
 
   /** The expected action to be taken upon receiving this message. */
   @serializable(1)
-  ackType = TransferInstantAnimSetAckTypeValues.Download;
+  ackType = TransferInstantAnimationsSetAckTypeValues.Download;
 }
 
 /** Message send by a Pixel to report a log message to the application. */
@@ -479,7 +479,7 @@ export class DebugLog implements PixelMessage {
   readonly type = MessageTypeValues.DebugLog;
 
   /** The message to log. */
-  @serializable(MaxDataSize) //TODO MaxDataSize - 1
+  @serializable(MaxMessageSize)
   message = "";
 }
 
@@ -490,7 +490,7 @@ export class PlaySound implements PixelMessage {
   readonly type = MessageTypeValues.PlaySound;
 
   /** The id for the clip. */
-  @serializable(2) //TODO no 16 bits alignment?
+  @serializable(2)
   clipId = 0;
 }
 
@@ -539,7 +539,7 @@ export class Rssi implements PixelMessage {
   readonly type = MessageTypeValues.Rssi;
 
   /** The RSSI value, between 0 and 65535. */
-  @serializable(2) //TODO no 16 bits alignment?
+  @serializable(2)
   rssi = 0;
 }
 
@@ -558,14 +558,14 @@ export class NotifyUser implements PixelMessage {
 
   /** Whether to display the OK button. */
   @serializable(1)
-  ok = 0; //TODO boolean
+  ok = false;
 
   /** Whether to display the Cancel button. */
   @serializable(1)
-  cancel = 0; //TODO boolean
+  cancel = false;
 
   /** Message to show to the user. */
-  @serializable(MaxDataSize - 4)
+  @serializable(MaxMessageSize - 4)
   message = "";
 }
 
@@ -577,7 +577,7 @@ export class NotifyUserAck implements PixelMessage {
 
   /** Whether the use selected OK or Cancel. */
   @serializable(1)
-  okCancel = 0; //TODO boolean
+  okCancel = false;
 }
 
 /**
@@ -615,7 +615,7 @@ export class TransferInstantAnimationSetAck implements PixelMessage {
 
   /** The expected action to be taken upon receiving this message. */
   @serializable(1)
-  ackType = TransferInstantAnimSetAckTypeValues.Download;
+  ackType = TransferInstantAnimationsSetAckTypeValues.Download;
 }
 
 /** Message send to a Pixel to have it play an already uploaded instant animation. */
@@ -634,7 +634,7 @@ export class PlayInstantAnimation implements PixelMessage {
 
   /** Whether to play the animation forever. */
   @serializable(1)
-  loop = 0; //TODO boolean
+  loop = false;
 }
 
 // Returns the list of message classes defined in this file.

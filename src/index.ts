@@ -1,7 +1,4 @@
 import {
-  serviceUuid,
-  notifyCharacteristicUuid,
-  writeCharacteristicUuid,
   DiceTypeValues,
   DiceType,
   ConnectionEventValues,
