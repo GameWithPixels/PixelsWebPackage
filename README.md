@@ -10,9 +10,16 @@ for accessing Bluetooth.
 At the time of writing, only Chrome, Edge and Opera browsers have
 support for these APIs.
 
-Currently all testing is done with Chrome on Windows 10.
+Currently all testing is done with the latest Chrome on Windows 10.
+
 If you're on Linux, you may need to first set this flag to enable the Web
-Bluetooth API: `chrome://flags/#enable-experimental-web-platform-features`.
+Bluetooth API:
+`chrome://flags/#enable-experimental-web-platform-features`.
+However be careful as it would be risky to browse the web whith this flag turned on
+as it enables many other experimental web platform features.
+
+Starting with Chrome version 100, there will be a safer flag to use:
+`chrome://flags/#enable-web-bluetooth`.
 
 Please open a [ticket](https://github.com/GameWithPixels/PixelsWebPackage/issues)
 in GitHub if you're having any issue.
@@ -40,8 +47,8 @@ Here is simple code example:
 
 ```TypeScript
 // Ask user to select a Pixel
-const pixel = await Pixel.requestPixel();
-log('Connecting...')
+const pixel = await requestPixel();
+log("Connecting...");
 await pixel.connect();
 
 // Get some info

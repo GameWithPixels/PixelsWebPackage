@@ -402,6 +402,17 @@ export class Pixel extends EventTarget {
   }
 
   /**
+   * Asynchronously revokes access to the Pixel.
+   * Be careful, this feature is experimental and requires users to turn on the
+   * `chrome://flags/#enable-web-bluetooth-new-permissions-backend` flag in
+   * Chrome version 101 and later.
+   * @returns A promise.
+   */
+  async forget(): Promise<void> {
+    await this._device.forget();
+  }
+
+  /**
    * Register a listener to be invoked on receiving messages of a given type.
    * This helper method calls {@link addEventListener}.
    *
