@@ -35,7 +35,7 @@ export default class EditDataSet extends Editable {
     return -1;
   }
 
-  getPatternRGBTrackOffset(pattern?: EditPattern) {
+  getPatternRGBTrackOffset(pattern?: EditPattern): number {
     let ret = 0;
     if (pattern) {
       for (let i = 0; i < this.rgbPatterns.length; ++i) {

@@ -15,8 +15,8 @@ import Color from "./Color";
 /// <returns>A 32 bits color value.</returns>
 export function toColor32(
   redOrColor: number | Color,
-  green: number = 0,
-  blue: number = 0
+  green = 0,
+  blue = 0
 ): number {
   if (typeof redOrColor !== "number") {
     green = redOrColor.g * 255;
@@ -40,7 +40,7 @@ export function getRed(color32: number): number {
 /// </summary>
 /// <param name="color32">The 32 bits color value.</param>
 /// <returns>The green component of the color.</returns>
-export function getGreen(color32: number) {
+export function getGreen(color32: number): number {
   return (color32 >> 8) & 0xff;
 }
 

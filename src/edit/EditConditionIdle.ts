@@ -1,14 +1,12 @@
 import DataSet from "../animations/DataSet";
-import { ActionType } from "../profiles/actions";
-import {
-  Condition,
-  ConditionIdle,
-  ConditionTypeValues,
-} from "../profiles/conditions";
 import { safeAssign } from "../utils";
 import EditCondition from "./EditCondition";
 import EditDataSet from "./EditDataSet";
 import { range, units, widget } from "./decorators";
+import { ActionType } from "../profiles/ActionType";
+import { ConditionTypeValues } from "../profiles/ConditionType";
+import Condition from "../profiles/Condition";
+import ConditionIdle from "../profiles/ConditionIdle";
 
 export default class EditConditionIdle extends EditCondition {
   get type(): ActionType {

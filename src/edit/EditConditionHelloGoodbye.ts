@@ -1,15 +1,14 @@
 import DataSet from "../animations/DataSet";
-import { ActionType } from "../profiles/actions";
-import {
-  Condition,
-  ConditionHelloGoodbye,
-  ConditionTypeValues,
-  HelloGoodbyeFlags,
-} from "../profiles/conditions";
 import { safeAssign } from "../utils";
 import EditCondition from "./EditCondition";
 import EditDataSet from "./EditDataSet";
 import { name, widget } from "./decorators";
+import { ActionType } from "../profiles/ActionType";
+import { ConditionTypeValues } from "../profiles/ConditionType";
+import ConditionHelloGoodbye, {
+  HelloGoodbyeFlags,
+} from "../profiles/ConditionHelloGoodbye";
+import Condition from "../profiles/Condition";
 
 export default class EditConditionHelloGoodbye extends EditCondition {
   get type(): ActionType {

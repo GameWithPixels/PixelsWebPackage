@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-types */
 export interface PropertyData {
   propertyKey: string;
 }
@@ -150,7 +151,7 @@ export function getPropsWithDisplayOrder(
 const skipEnumKey = Symbol("pixelAnimationSkipEnum");
 
 // Skip decorator
-export function skipEnum(target: object, propertyKey: string) {
+export function skipEnum(target: object, propertyKey: string): void {
   addMetadata(skipEnumKey, target, { propertyKey });
 }
 

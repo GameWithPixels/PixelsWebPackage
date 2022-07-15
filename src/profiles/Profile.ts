@@ -1,6 +1,6 @@
 import { serializable } from "../Serializable";
 
-export class Profile {
+export default class Profile {
   @serializable(2)
   rulesOffset = 0;
 

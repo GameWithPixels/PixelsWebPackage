@@ -1,10 +1,8 @@
 import DataSet from "../animations/DataSet";
-import { ActionType } from "../profiles/actions";
-import {
-  Condition,
-  ConditionCrooked,
-  ConditionTypeValues,
-} from "../profiles/conditions";
+import { ActionType } from "../profiles/ActionType";
+import Condition from "../profiles/Condition";
+import ConditionCrooked from "../profiles/ConditionCrooked";
+import { ConditionTypeValues } from "../profiles/ConditionType";
 import EditCondition from "./EditCondition";
 import EditDataSet from "./EditDataSet";
 

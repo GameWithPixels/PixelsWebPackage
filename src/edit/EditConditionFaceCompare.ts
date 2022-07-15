@@ -1,15 +1,14 @@
 import DataSet from "../animations/DataSet";
-import { ActionType } from "../profiles/actions";
-import {
-  Condition,
-  ConditionFaceCompare,
-  ConditionTypeValues,
-  FaceCompareFlags,
-} from "../profiles/conditions";
 import { safeAssign } from "../utils";
 import EditCondition from "./EditCondition";
 import EditDataSet from "./EditDataSet";
 import { name, range, widget } from "./decorators";
+import { ActionType } from "../profiles/ActionType";
+import { ConditionTypeValues } from "../profiles/ConditionType";
+import ConditionFaceCompare, {
+  FaceCompareFlags,
+} from "../profiles/ConditionFaceCompare";
+import Condition from "../profiles/Condition";
 
 export default class EditConditionFaceCompare extends EditCondition {
   get type(): ActionType {

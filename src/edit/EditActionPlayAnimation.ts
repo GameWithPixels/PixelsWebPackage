@@ -1,15 +1,12 @@
 import DataSet from "../animations/DataSet";
-import {
-  Action,
-  ActionPlayAnimation,
-  ActionType,
-  ActionTypeValues,
-} from "../profiles/actions";
 import { safeAssign } from "../utils";
 import EditAction from "./EditAction";
 import EditAnimation from "./EditAnimation";
 import EditDataSet from "./EditDataSet";
 import { name, range, widget } from "./decorators";
+import { ActionType, ActionTypeValues } from "../profiles/ActionType";
+import Action from "../profiles/Action";
+import ActionPlayAnimation from "../profiles/ActionPlayAnimation";
 
 export default class EditActionPlayAnimation extends EditAction {
   @name("Lighting Pattern")

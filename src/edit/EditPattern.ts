@@ -11,7 +11,7 @@ export default class EditPattern extends Editable {
 
   readonly gradients: EditRgbGradient[];
 
-  get duration() {
+  get duration(): number {
     return this.gradients.length
       ? Math.max(...this.gradients.map((g) => g.duration))
       : 1;

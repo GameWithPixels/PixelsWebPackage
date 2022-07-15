@@ -9,17 +9,17 @@ export default class EditRgbTrack extends Editable {
   readonly ledIndices: number[] = [];
   readonly gradient: EditRgbGradient;
 
-  get empty() {
+  get empty(): boolean {
     return this.gradient.empty;
   }
 
-  get duration() {
+  get duration(): number {
     return this.gradient.duration;
   }
-  get firstTime() {
+  get firstTime(): number {
     return this.gradient.firstTime;
   }
-  get lastTime() {
+  get lastTime(): number {
     return this.gradient.lastTime;
   }
 

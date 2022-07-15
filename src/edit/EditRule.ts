@@ -1,11 +1,11 @@
 import DataSet from "../animations/DataSet";
-import { Rule } from "../profiles/Rule";
 import { safeAssign } from "../utils";
 import EditAction from "./EditAction";
 import EditAnimation from "./EditAnimation";
 import EditCondition from "./EditCondition";
 import EditDataSet from "./EditDataSet";
 import Editable from "./Editable";
+import Rule from "../profiles/Rule";
 
 export default class EditRule extends Editable {
   condition?: EditCondition;

@@ -1,10 +1,8 @@
 import DataSet from "../animations/DataSet";
-import { ActionType } from "../profiles/actions";
-import {
-  Condition,
-  ConditionHandling,
-  ConditionTypeValues,
-} from "../profiles/conditions";
+import { ActionType } from "../profiles/ActionType";
+import Condition from "../profiles/Condition";
+import ConditionHandling from "../profiles/ConditionHandling";
+import { ConditionTypeValues } from "../profiles/ConditionType";
 import EditCondition from "./EditCondition";
 import EditDataSet from "./EditDataSet";
 

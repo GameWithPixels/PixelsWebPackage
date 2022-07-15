@@ -1,6 +1,6 @@
 import { serializable } from "../Serializable";
 
-export class Rule {
+export default class Rule {
   @serializable(2)
   condition = 0;
 

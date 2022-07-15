@@ -1,8 +1,8 @@
 import { align32bits, byteSizeOf, serialize } from "../Serializable";
-import { Profile } from "../profiles/Profile";
-import { Rule } from "../profiles/Rule";
-import { Action } from "../profiles/actions";
-import { Condition } from "../profiles/conditions";
+import Profile from "../profiles/Profile";
+import Rule from "../profiles/Rule";
+import Action from "../profiles/Action";
+import Condition from "../profiles/Condition";
 import { assert } from "../utils";
 import AnimationBits from "./AnimationBits";
 import AnimationPreset from "./AnimationPreset";
@@ -15,27 +15,27 @@ export default class DataSet {
   private readonly _rules: Rule[] = [];
   private _profile = new Profile();
 
-  get animationBits() {
+  get animationBits(): AnimationBits {
     return this._animationBits;
   }
 
-  get animations() {
+  get animations(): AnimationPreset[] {
     return this._animations;
   }
 
-  get conditions() {
+  get conditions(): Condition[] {
     return this._conditions;
   }
 
-  get actions() {
+  get actions(): Action[] {
     return this._actions;
   }
 
-  get rules() {
+  get rules(): Rule[] {
     return this._rules;
   }
 
-  get profile() {
+  get profile(): Profile {
     return this._profile;
   }
   set profile(value: Profile) {

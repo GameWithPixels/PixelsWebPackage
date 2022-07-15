@@ -1,10 +1,10 @@
 import DataSet from "../animations/DataSet";
-import { Profile } from "../profiles/Profile";
 import { safeAssign } from "../utils";
 import EditAnimation from "./EditAnimation";
 import EditDataSet from "./EditDataSet";
 import EditRule from "./EditRule";
 import Editable from "./Editable";
+import Profile from "../profiles/Profile";
 
 export default class EditProfile extends Editable {
   name: string;

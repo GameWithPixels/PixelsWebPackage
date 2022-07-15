@@ -1,8 +1,9 @@
 import DataSet from "../animations/DataSet";
-import { Action, ActionType } from "../profiles/actions";
 import EditAnimation from "./EditAnimation";
 import EditDataSet from "./EditDataSet";
 import Editable from "./Editable";
+import { ActionType } from "../profiles/ActionType";
+import Action from "../profiles/Action";
 
 export default abstract class EditAction extends Editable {
   abstract get type(): ActionType;

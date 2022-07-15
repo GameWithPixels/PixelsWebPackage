@@ -4,7 +4,6 @@ import AnimationInstanceGradientPattern from "./AnimationInstanceGradientPattern
 import AnimationPreset from "./AnimationPreset";
 import { AnimationType, AnimationTypeValues } from "./AnimationType";
 
-//TODO Not 32 bits aligned (14 bytes total)
 export default class AnimationGradientPattern implements AnimationPreset {
   @serializable(1, { padding: 1 })
   readonly type: AnimationType = AnimationTypeValues.GradientPattern;
