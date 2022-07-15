@@ -30,7 +30,7 @@ This package is based on https://github.com/tomchen/example-typescript-package.
 
 To install the package:
 ```
-npm i pixels-library
+npm i @systemic-games/pixels-library
 ```
 
 Start by calling the `requestPixel` function to request the user to
@@ -47,23 +47,25 @@ Here is simple code example:
 
 ```TypeScript
 // Ask user to select a Pixel
-const pixel = await requestPixel();
-log("Connecting...");
+const pixel = await Pixel.requestPixel();
+console.log("Connecting...");
 await pixel.connect();
 
 // Get some info
 const rollState = await pixel.getRollState();
-log(`=> roll state: ${rollState.state}, face ${rollState.face}`);
+console.log(`=> roll state: ${rollState.state}, face ${rollState.faceIndex}`);
 const battery = await pixel.getBatteryLevel();
-log(`=> battery: ${battery.level}, ${battery.voltage}v`);
+console.log(`=> battery: ${battery.level}, ${battery.voltage}v`);
 const rssi = await pixel.getRssi();
+console.log(`=> rssi: ${rssi}`);
+const rssi = await pixel.blink(Color.red);
 
 // Add listener to get notified when the Pixel roll state changes
 pixel.addEventListener("messageRollState", (ev: CustomEvent<MessageOrType>) => {
 // Or: pixel.addMessageListener(MessageTypeValues.RollState, (ev: CustomEvent<MessageOrType>) => {
     const msg = ev.detail as RollState;
-    log(`=> roll state: ${msg.state}, face ${msg.face}`);
-}
+    console.log(`=> roll state: ${msg.state}, face ${msg.faceIndex}`);
+});
 ```
 
 ## Module documentation
