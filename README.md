@@ -15,7 +15,7 @@ Currently all testing is done with the latest Chrome on Windows 10.
 If you're on Linux, you may need to first set this flag to enable the Web
 Bluetooth API:
 `chrome://flags/#enable-experimental-web-platform-features`.
-However be careful as it would be risky to browse the web whith this flag turned on
+However be careful as it would be risky to browse the web with this flag turned on
 as it enables many other experimental web platform features.
 
 Starting with Chrome version 100, there will be a safer flag to use:
