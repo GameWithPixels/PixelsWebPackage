@@ -1,4 +1,12 @@
-import { enumVal } from "./utils";
+import {
+  deserialize,
+  serializable,
+  SerializationError,
+  serialize,
+} from "./Serializable";
+import { assert, enumValue } from "./utils";
+
+export const MaxDataSize = 100; //TODO move to constants
 
 /**
  * Lists all the Pixel dice message types.
@@ -7,108 +15,148 @@ import { enumVal } from "./utils";
  * @enum
  */
 export const MessageTypeValues = {
-  None: enumVal(0),
-  WhoAreYou: enumVal(),
-  IAmADie: enumVal(),
-  RollState: enumVal(),
-  Telemetry: enumVal(),
-  BulkSetup: enumVal(),
-  BulkSetupAck: enumVal(),
-  BulkData: enumVal(),
-  BulkDataAck: enumVal(),
-  TransferAnimationSet: enumVal(),
-  TransferAnimationSetAck: enumVal(),
-  TransferAnimationSetFinished: enumVal(),
-  TransferSettings: enumVal(),
-  TransferSettingsAck: enumVal(),
-  TransferSettingsFinished: enumVal(),
-  TransferTestAnimationSet: enumVal(),
-  TransferTestAnimationSetAck: enumVal(),
-  TransferTestAnimationSetFinished: enumVal(),
-  DebugLog: enumVal(),
-  PlayAnimation: enumVal(),
-  PlayAnimationEvent: enumVal(),
-  StopAnimation: enumVal(),
-  PlaySound: enumVal(),
-  RequestRollState: enumVal(),
-  RequestAnimationSet: enumVal(),
-  RequestSettings: enumVal(),
-  RequestTelemetry: enumVal(),
-  ProgramDefaultAnimationSet: enumVal(),
-  ProgramDefaultAnimationSetFinished: enumVal(),
-  Blink: enumVal(),
-  BlinkFinished: enumVal(),
-  RequestDefaultAnimationSetColor: enumVal(),
-  DefaultAnimationSetColor: enumVal(),
-  RequestBatteryLevel: enumVal(),
-  BatteryLevel: enumVal(),
-  RequestRssi: enumVal(),
-  Rssi: enumVal(),
-  Calibrate: enumVal(),
-  CalibrateFace: enumVal(),
-  NotifyUser: enumVal(),
-  NotifyUserAck: enumVal(),
-  TestHardware: enumVal(),
-  SetStandardState: enumVal(),
-  SetLEDAnimationState: enumVal(),
-  SetBattleState: enumVal(),
-  ProgramDefaultParameters: enumVal(),
-  ProgramDefaultParametersFinished: enumVal(),
-  SetDesignAndColor: enumVal(),
-  SetDesignAndColorAck: enumVal(),
-  SetCurrentBehavior: enumVal(),
-  SetCurrentBehaviorAck: enumVal(),
-  SetName: enumVal(),
-  SetNameAck: enumVal(),
+  None: enumValue(0),
+  WhoAreYou: enumValue(),
+  IAmADie: enumValue(),
+  RollState: enumValue(),
+  Telemetry: enumValue(),
+  BulkSetup: enumValue(),
+  BulkSetupAck: enumValue(),
+  BulkData: enumValue(),
+  BulkDataAck: enumValue(),
+  TransferAnimationSet: enumValue(),
+  TransferAnimationSetAck: enumValue(),
+  TransferAnimationSetFinished: enumValue(),
+  TransferSettings: enumValue(),
+  TransferSettingsAck: enumValue(),
+  TransferSettingsFinished: enumValue(),
+  TransferTestAnimationSet: enumValue(),
+  TransferTestAnimationSetAck: enumValue(),
+  TransferTestAnimationSetFinished: enumValue(),
+  DebugLog: enumValue(),
+  PlayAnimation: enumValue(),
+  PlayAnimationEvent: enumValue(),
+  StopAnimation: enumValue(),
+  PlaySound: enumValue(),
+  RequestRollState: enumValue(),
+  RequestAnimationSet: enumValue(),
+  RequestSettings: enumValue(),
+  RequestTelemetry: enumValue(),
+  ProgramDefaultAnimationSet: enumValue(),
+  ProgramDefaultAnimationSetFinished: enumValue(),
+  Blink: enumValue(),
+  BlinkFinished: enumValue(),
+  RequestDefaultAnimationSetColor: enumValue(),
+  DefaultAnimationSetColor: enumValue(),
+  RequestBatteryLevel: enumValue(),
+  BatteryLevel: enumValue(),
+  RequestRssi: enumValue(),
+  Rssi: enumValue(),
+  Calibrate: enumValue(),
+  CalibrateFace: enumValue(),
+  NotifyUser: enumValue(),
+  NotifyUserAck: enumValue(),
+  TestHardware: enumValue(),
+  SetStandardState: enumValue(),
+  SetLEDAnimationState: enumValue(),
+  SetBattleState: enumValue(),
+  ProgramDefaultParameters: enumValue(),
+  ProgramDefaultParametersFinished: enumValue(),
+  SetDesignAndColor: enumValue(),
+  SetDesignAndColorAck: enumValue(),
+  SetCurrentBehavior: enumValue(),
+  SetCurrentBehaviorAck: enumValue(),
+  SetName: enumValue(),
+  SetNameAck: enumValue(),
+  Sleep: enumValue(),
+  ExitValidation: enumValue(),
+  TransferInstantAnimationSet: enumValue(),
+  TransferInstantAnimationSetAck: enumValue(),
+  TransferInstantAnimationSetFinished: enumValue(),
+  PlayInstantAnimation: enumValue(),
 
   // Testing
-  TestBulkSend: enumVal(),
-  TestBulkReceive: enumVal(),
-  SetAllLEDsToColor: enumVal(),
-  AttractMode: enumVal(),
-  PrintNormals: enumVal(),
-  PrintA2DReadings: enumVal(),
-  LightUpFace: enumVal(),
-  SetLEDToColor: enumVal(),
-  DebugAnimationController: enumVal(),
+  TestBulkSend: enumValue(),
+  TestBulkReceive: enumValue(),
+  SetAllLEDsToColor: enumValue(),
+  AttractMode: enumValue(),
+  PrintNormals: enumValue(),
+  PrintA2DReadings: enumValue(),
+  LightUpFace: enumValue(),
+  SetLEDToColor: enumValue(),
+  DebugAnimationController: enumValue(),
 } as const;
 
 /** The "enum" type for {@link MessageTypeValues}. */
-export type MessageType = typeof MessageTypeValues[keyof typeof MessageTypeValues];
+export type MessageType =
+  typeof MessageTypeValues[keyof typeof MessageTypeValues];
 
 /**
  * Base type for all Pixels messages.
  * Note: messages that have no specific data don't require a class,
  * a {@link MessageTypeValue} is used instead.
  */
-export interface Message {
+export interface PixelMessage {
   /** Type of the message. */
   readonly type: MessageType;
 }
 
 /**
- * Union type of {@link Message} and {@link MessageType} types.
- * Messages without parameter have no {@link Message} class to represent them,
+ * Union type of {@link PixelMessage} and {@link MessageType} types.
+ * Messages without parameter have no {@link PixelMessage} class to represent them,
  * instead they are represent by the corresponding {@link MessageTypeValue}.
  */
-export type MessageOrType = Message | MessageType;
+export type MessageOrType = PixelMessage | MessageType;
 
 /**
- * Gets the message type of the given message or message type value.
- * @param msgOrType A message or a message type value.
- * @returns The message type.
+ * Type representing a PixelMessage constructor.
  */
-export function getMessageType(msgOrType: MessageOrType): MessageType {
-  return typeof msgOrType === "number" ? msgOrType : msgOrType.type;
+export type MessageClass = new () => PixelMessage;
+
+// Lookup table from MessageType to MessageClass
+let _messageClassesLookup: Readonly<Map<MessageType, MessageClass>>;
+function _getMessageClass(msgType: MessageType): MessageClass | undefined {
+  if (!_messageClassesLookup) {
+    _messageClassesLookup = new Map(
+      _getMessageClasses().map((m) => [new m().type, m])
+    );
+  }
+  return _messageClassesLookup.get(msgType);
+}
+
+// Lookup table from MessageClass to MessageType
+let _reverseMessageClassesLookup: Readonly<Map<MessageClass, MessageType>>;
+function _getMessageClassType(msgClass: MessageClass): MessageType {
+  if (!_reverseMessageClassesLookup) {
+    _reverseMessageClassesLookup = new Map(
+      _getMessageClasses().map((m) => [m, new m().type])
+    );
+  }
+  return _reverseMessageClassesLookup.get(msgClass) ?? MessageTypeValues.None;
 }
 
 /**
- * Type predicate for {@link Message} class.
- * @param obj Any object.
- * @returns Whether the given object is a {@link Message}.
+ * Gets the type of the given message or message type value.
+ * @param msgOrTypeOrClass A message or a message type value.
+ * @returns The message type.
  */
-export function isMessage(obj: unknown): obj is Message {
-  return (obj as Message).type !== undefined;
+export function getMessageType(
+  msgOrTypeOrClass: MessageOrType | MessageClass
+): MessageType {
+  return typeof msgOrTypeOrClass === "function"
+    ? _getMessageClassType(msgOrTypeOrClass)
+    : typeof msgOrTypeOrClass === "number"
+    ? msgOrTypeOrClass
+    : msgOrTypeOrClass.type;
+}
+
+/**
+ * Type predicate for {@link PixelMessage} class.
+ * @param obj Any object.
+ * @returns Whether the given object is a {@link PixelMessage}.
+ */
+export function isMessage(obj: unknown): obj is PixelMessage {
+  return (obj as PixelMessage).type !== undefined;
 }
 
 /**
@@ -116,7 +164,9 @@ export function isMessage(obj: unknown): obj is Message {
  * @param msgOrType A message or a message type value.
  * @returns The message name.
  */
-export function getMessageName(msgOrType: MessageOrType): keyof typeof MessageTypeValues {
+export function getMessageName(
+  msgOrType: MessageOrType
+): keyof typeof MessageTypeValues {
   const msgType = getMessageType(msgOrType);
   for (const [key, value] of Object.entries(MessageTypeValues)) {
     if (value === msgType) {
@@ -127,21 +177,36 @@ export function getMessageName(msgOrType: MessageOrType): keyof typeof MessageTy
 }
 
 /**
+ * Creates a message object for the given message type.
+ * @param type Type of message.
+ * @returns A PixelMessage object with the given message type.
+ */
+export function instantiateMessage(type: MessageType): PixelMessage {
+  const ctor = _getMessageClass(type);
+  if (ctor) {
+    return new ctor();
+  } else {
+    return new GenericPixelMessage(type);
+  }
+}
+
+/**
  * Serialize the given Pixel message.
  * @param msgOrType A message or a message type value.
  * @returns The serialized data.
  */
-export function serializeMessage(msgOrType: MessageOrType): Uint8Array {
+export function serializeMessage(msgOrType: MessageOrType): ArrayBuffer {
   if (typeof msgOrType === "number") {
     return Uint8Array.of(msgOrType);
   } else {
-    const msg = msgOrType as Blink;
-    const dataView = new DataView(new ArrayBuffer(8));
-    dataView.setUint8(0, msg.type);
-    dataView.setUint8(1, msg.flashCount);
-    dataView.setUint32(2, msg.color, true);
-    dataView.setUint16(6, msg.duration, true);
-    return new Uint8Array(dataView.buffer);
+    const [dataView] = serialize(msgOrType);
+    assert(dataView.byteLength > 0, "Got empty buffer from deserialization");
+    assert(
+      dataView.getUint8(0) === getMessageType(msgOrType),
+      `Unexpected message type, got ${dataView.getUint8(0)} ` +
+        `instead of ${getMessageType(msgOrType)}`
+    );
+    return dataView.buffer;
   }
 }
 
@@ -150,67 +215,31 @@ export function serializeMessage(msgOrType: MessageOrType): Uint8Array {
  * @param buffer The data to deserialize the message from.
  * @returns The deserialized message or just its type value (for messages with no class).
  */
-export function deserializeMessage(buffer: ArrayBuffer): MessageOrType {
+export function deserializeMessage(buffer: ArrayBufferLike): MessageOrType {
   if (!buffer?.byteLength) {
-    throw new Error("Empty buffer");
+    throw new SerializationError("Can't deserialize a null or empty buffer");
   }
 
-  // Get the data view
   const dataView = new DataView(buffer);
-
-  // Helpers to read the data sequentially
-  let index = 0;
-  function incAndRet<T>(v: T, inc: number) {
-    index += inc;
-    return v;
-  }
-  // Note: serialization needs to have little endianness
-  const readU8 = () => incAndRet(dataView.getUint8(index), 1);
-  const readU16 = () => incAndRet(dataView.getUint16(index, true), 2);
-  const readU32 = () => incAndRet(dataView.getUint32(index, true), 4);
-  const readFloat = () => incAndRet(dataView.getFloat32(index, true), 4);
-  // Can only be called last as it reads through the end of the buffer
-  function readString() {
-    const str = new TextDecoder().decode(dataView.buffer.slice(index));
-    const c = str.indexOf("\0"); // We might have trailing null characters
-    return c >= 0 ? str.substring(0, c) : str;
-  }
-
-  // First byte is message type
-  const msgType = readU8();
-  switch (msgType) {
-    case MessageTypeValues.IAmADie:
-      const diceType = readU8();
-      const designAndColor = readU8();
-      index += 1;
-      const dataSetHash = readU32();
-      const deviceId = readU32();
-      const flashSize = readU16();
-      const version = readString();
-      return new IAmADie(diceType, designAndColor, dataSetHash, deviceId, flashSize, version);
-
-    case MessageTypeValues.RollState:
-      const state = readU8();
-      const face = readU8() + 1;
-      return new RollState(state, face);
-
-    case MessageTypeValues.PlaySound:
-      const clipId = readU16();
-      return new PlaySound(clipId);
-
-    case MessageTypeValues.BatteryLevel:
-      const level = readFloat();
-      const voltage = readFloat();
-      const charging = readU8() != 0;
-      return new BatteryLevel(level, voltage, charging);
-
-    case MessageTypeValues.Rssi:
-      const value = readU16();
-      return new Rssi(value);
-
-    default:
-      // Any other message
-      return msgType;
+  const msgType = dataView.getUint8(0);
+  if (buffer.byteLength === 1) {
+    return msgType;
+  } else {
+    const msg = instantiateMessage(msgType);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [_, byteRead] = deserialize(msg, dataView);
+    if (byteRead !== buffer.byteLength) {
+      console.log(
+        `The last ${
+          buffer.byteLength - byteRead
+        } bytes were not read during deserialization"`
+      );
+    }
+    assert(
+      msg.type === msgType,
+      `Incorrect message type after deserialization ${msg.type} but expecting ${msgType}`
+    );
+    return msg;
   }
 }
 
@@ -219,51 +248,53 @@ export function deserializeMessage(buffer: ArrayBuffer): MessageOrType {
  * @enum
  */
 export const PixelDesignAndColorValues = {
-  Unknown: enumVal(0),
-  Generic: enumVal(),
-  V3_Orange: enumVal(),
-  V4_BlackClear: enumVal(),
-  V4_WhiteClear: enumVal(),
-  V5_Grey: enumVal(),
-  V5_White: enumVal(),
-  V5_Black: enumVal(),
-  V5_Gold: enumVal(),
-  Onyx_Back: enumVal(),
-  Hematite_Grey: enumVal(),
-  Midnight_Galaxy: enumVal(),
-  Aurora_Sky: enumVal(),
+  Unknown: enumValue(0),
+  Generic: enumValue(),
+  V3_Orange: enumValue(),
+  V4_BlackClear: enumValue(),
+  V4_WhiteClear: enumValue(),
+  V5_Grey: enumValue(),
+  V5_White: enumValue(),
+  V5_Black: enumValue(),
+  V5_Gold: enumValue(),
+  Onyx_Back: enumValue(),
+  Hematite_Grey: enumValue(),
+  Midnight_Galaxy: enumValue(),
+  Aurora_Sky: enumValue(),
 } as const;
 
 /** The "enum" type for {@link PixelDesignAndColorValues}. */
 export type PixelDesignAndColor =
   typeof PixelDesignAndColorValues[keyof typeof PixelDesignAndColorValues];
 
-/** Message send by a Pixel after receiving a "WhoAmI". */
-export class IAmADie implements Message {
-  readonly type: MessageType = MessageTypeValues.IAmADie;
+class GenericPixelMessage implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.IAmADie;
 
-  readonly diceType: number;
-  readonly designAndColor: PixelDesignAndColor;
-  readonly dataSetHash: number;
-  readonly pixelId: number;
-  readonly flashSize: number;
-  readonly version: string;
-
-  constructor(
-    diceType: number,
-    designAndColor: PixelDesignAndColor,
-    dataSetHash: number,
-    pixelId: number,
-    flashSize: number,
-    version: string
-  ) {
-    this.diceType = diceType;
-    this.designAndColor = designAndColor;
-    this.dataSetHash = dataSetHash;
-    this.pixelId = pixelId;
-    this.flashSize = flashSize;
-    this.version = version;
+  constructor(type: MessageType) {
+    this.type = type;
   }
+}
+
+/** Message send by a Pixel after receiving a "WhoAmI". */
+export class IAmADie implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.IAmADie;
+
+  @serializable(1)
+  ledCount = 0;
+  @serializable(1, { padding: 1 })
+  designAndColor = PixelDesignAndColorValues.Generic;
+  @serializable(4)
+  dataSetHash = 0;
+  @serializable(4)
+  pixelId = 0;
+  @serializable(2)
+  availableFlash = 0;
+  @serializable(4)
+  buildTimestamp = 0;
 }
 
 /**
@@ -272,105 +303,361 @@ export class IAmADie implements Message {
  */
 export const PixelRollStateValues = {
   // The Pixel roll state could not be determined.
-  Unknown: enumVal(0),
+  Unknown: enumValue(0),
 
   // The Pixel is resting in a position with a face up.
-  OnFace: enumVal(),
+  OnFace: enumValue(),
 
   // The Pixel is being handled.
-  Handling: enumVal(),
+  Handling: enumValue(),
 
   // The Pixel is rolling.
-  Rolling: enumVal(),
+  Rolling: enumValue(),
 
   // The Pixel is resting in a crooked position.
-  Crooked: enumVal(),
+  Crooked: enumValue(),
 } as const;
 
 /** The "enum" type for {@link PixelRollStateValues}. */
-export type PixelRollState = typeof PixelRollStateValues[keyof typeof PixelRollStateValues];
+export type PixelRollState =
+  typeof PixelRollStateValues[keyof typeof PixelRollStateValues];
 
 /** Message send by a Pixel to notify of its rolling state. */
-export class RollState implements Message {
-  readonly type: MessageType = MessageTypeValues.RollState;
+export class RollState implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.RollState;
 
   /** Current roll state. */
-  readonly state: PixelRollState;
+  @serializable(1)
+  state = PixelRollStateValues.Unknown;
 
-  /** Face number (if applicable), starts at 1. */
-  readonly face: number;
+  /** Face number (if applicable), starts at 0. */
+  @serializable(1)
+  faceIndex = 0;
+}
 
-  /** Instantiates a roll state message from a {@link PixelRollStateValues} and face number. */
-  constructor(state: PixelRollState, face: number) {
-    this.state = state;
-    this.face = face;
-  }
+/**
+ * Message send to a Pixel to request a transfer of data.
+ * This is usually done after initiating an animation transfer request
+ * and followed by BulkData messages with the actual data.
+ */
+export class BulkSetup implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.BulkSetup;
+
+  @serializable(2)
+  size = 0;
+}
+
+/**
+ * Message send to a Pixel to request to transfer a piece of data.
+ * A BulkSetup message must be send first.
+ */
+export class BulkData implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.BulkData;
+
+  @serializable(1)
+  size = 0;
+  @serializable(2)
+  offset = 0;
+  @serializable(MaxDataSize) //TODO MaxDataSize - 4
+  data?: ArrayBufferLike;
+}
+
+/** Message send by a Pixel after receiving a BulkData request. */
+export class BulkDataAck implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.BulkDataAck;
+
+  /** The . */
+  @serializable(2) //TODO no 16 bits alignment?
+  offset = 0;
+}
+
+/**
+ * Message send to a Pixel to request a transfer of a
+ * full animation data set (stored in flash memory).
+ */
+export class TransferAnimationSet implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.TransferAnimationSet;
+
+  @serializable(2)
+  paletteSize = 0;
+  @serializable(2)
+  rgbKeyFrameCount = 0;
+  @serializable(2)
+  rgbTrackCount = 0;
+  @serializable(2)
+  keyFrameCount = 0;
+  @serializable(2)
+  trackCount = 0;
+  @serializable(2)
+  animationCount = 0;
+  @serializable(2)
+  animationSize = 0;
+  @serializable(2)
+  conditionCount = 0;
+  @serializable(2)
+  conditionSize = 0;
+  @serializable(2)
+  actionCount = 0;
+  @serializable(2)
+  actionSize = 0;
+  @serializable(2)
+  ruleCount = 0;
+}
+
+/** Message send by a Pixel after receiving a TransferAnimationSet request. */
+export class TransferAnimationSetAck implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.TransferAnimationSetAck;
+
+  /** The . */
+  @serializable(1)
+  result = 0;
+}
+
+/**
+ * Message send to a Pixel to request a transfer of a
+ * test animation (stored in RAM memory).
+ */
+export class TransferTestAnimationSet implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.TransferTestAnimationSet;
+
+  @serializable(2)
+  paletteSize = 0;
+  @serializable(2)
+  rgbKeyFrameCount = 0;
+  @serializable(2)
+  rgbTrackCount = 0;
+  @serializable(2)
+  keyFrameCount = 0;
+  @serializable(2)
+  trackCount = 0;
+  @serializable(2)
+  animationSize = 0;
+  @serializable(4)
+  hash = 0;
+}
+
+/** Transfer animation ack values. */
+export const TransferInstantAnimSetAckTypeValues = {
+  Download: enumValue(0),
+  UpToDate: enumValue(),
+  NoMemory: enumValue(),
+} as const;
+
+/** The "enum" type for {@link TransferInstantAnimSetAckTypeValues}. */
+export type TransferInstantAnimationSetAckType =
+  typeof TransferInstantAnimSetAckTypeValues[keyof typeof TransferInstantAnimSetAckTypeValues];
+
+/** Message send by a Pixel after receiving a TransferTestAnimationSet request. */
+export class TransferTestAnimationSetAck implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.TransferTestAnimationSetAck;
+
+  /** The expected action to be taken upon receiving this message. */
+  @serializable(1)
+  ackType = TransferInstantAnimSetAckTypeValues.Download;
+}
+
+/** Message send by a Pixel to report a log message to the application. */
+export class DebugLog implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.DebugLog;
+
+  /** The message to log. */
+  @serializable(MaxDataSize) //TODO MaxDataSize - 1
+  message = "";
 }
 
 /** Message send by a Pixel to request playing a specific sound clip. */
-export class PlaySound implements Message {
-  readonly type: MessageType = MessageTypeValues.PlaySound;
+export class PlaySound implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.PlaySound;
 
   /** The id for the clip. */
-  readonly clipId: number;
-
-  /** Instantiates a play sound message from a clip id. */
-  constructor(clipId: number) {
-    this.clipId = clipId;
-  }
+  @serializable(2) //TODO no 16 bits alignment?
+  clipId = 0;
 }
 
 /** Message send to a Pixel to have it blink its LEDs. */
-export class Blink implements Message {
-  readonly type: MessageType = MessageTypeValues.Blink;
+export class Blink implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.Blink;
 
   /** Number of flashes. */
-  readonly flashCount: number;
+  @serializable(1)
+  count = 0;
 
   /** Color to blink. */
-  readonly color: number;
+  @serializable(4)
+  color = 0;
 
   /** Total duration in milliseconds. */
-  readonly duration: number;
-
-  /** Instantiates a blink message from a flash count, color and total duration in milliseconds. */
-  constructor(flashCount: number, color: number, duration: number) {
-    this.flashCount = flashCount;
-    this.color = color;
-    this.duration = duration;
-  }
+  @serializable(2)
+  duration = 0;
 }
 
 /** Message send by a Pixel to notify of its battery level and state. */
-export class BatteryLevel implements Message {
-  readonly type: MessageType = MessageTypeValues.BatteryLevel;
+export class BatteryLevel implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.BatteryLevel;
 
   /** The battery charge level, floating value between 0 and 1. */
-  readonly level: number;
+  @serializable(4, { numberFormat: "float" })
+  level = 0;
 
   /** The battery measured voltage. */
-  readonly voltage: number;
+  @serializable(4, { numberFormat: "float" })
+  voltage = 0;
 
   /** Whether the battery is charging. */
-  readonly charging: boolean;
-
-  /** Instantiates a battery level message from a battery level, voltage and charging state. */
-  constructor(level: number, voltage: number, charging: boolean) {
-    this.level = level;
-    this.voltage = voltage;
-    this.charging = charging;
-  }
+  @serializable(1)
+  charging = false;
 }
 
 /** Message send by a Pixel to notify of its measured RSSI. */
-export class Rssi implements Message {
-  readonly type: MessageType = MessageTypeValues.Rssi;
+export class Rssi implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.Rssi;
 
   /** The RSSI value, between 0 and 65535. */
-  readonly rssi: number;
+  @serializable(2) //TODO no 16 bits alignment?
+  rssi = 0;
+}
 
-  /** Instantiates a rssi message from a RSSI value. */
-  constructor(rssi: number) {
-    this.rssi = rssi;
-  }
+/**
+ * Message send by a Pixel to request the application to show
+ * a message to the user, and with optionally a required action.
+ */
+export class NotifyUser implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.NotifyUser;
+
+  /** Timeout after which the die won't listen for an answer. */
+  @serializable(1)
+  timeoutSec = 0;
+
+  /** Whether to display the OK button. */
+  @serializable(1)
+  ok = 0; //TODO boolean
+
+  /** Whether to display the Cancel button. */
+  @serializable(1)
+  cancel = 0; //TODO boolean
+
+  /** Message to show to the user. */
+  @serializable(MaxDataSize - 4)
+  message = "";
+}
+
+/** Message send to a Pixel in response to getting a NotifyUser request. */
+export class NotifyUserAck implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.NotifyUserAck;
+
+  /** Whether the use selected OK or Cancel. */
+  @serializable(1)
+  okCancel = 0; //TODO boolean
+}
+
+/**
+ * Message send to a Pixel to request a transfer of a set of
+ * instant animations (stored in RAM memory)
+ */
+export class TransferInstantAnimationSet implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.TransferInstantAnimationSet;
+
+  @serializable(2)
+  paletteSize = 0;
+  @serializable(2)
+  rgbKeyFrameCount = 0;
+  @serializable(2)
+  rgbTrackCount = 0;
+  @serializable(2)
+  keyFrameCount = 0;
+  @serializable(2)
+  trackCount = 0;
+  @serializable(2)
+  animationCount = 0;
+  @serializable(2)
+  animationSize = 0;
+  @serializable(4)
+  hash = 0;
+}
+
+/** Message send by a Pixel after receiving a TransferInstantAnimationSet request. */
+export class TransferInstantAnimationSetAck implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.TransferInstantAnimationSetAck;
+
+  /** The expected action to be taken upon receiving this message. */
+  @serializable(1)
+  ackType = TransferInstantAnimSetAckTypeValues.Download;
+}
+
+/** Message send to a Pixel to have it play an already uploaded instant animation. */
+export class PlayInstantAnimation implements PixelMessage {
+  /** Type of the message. */
+  @serializable(1)
+  readonly type = MessageTypeValues.PlayInstantAnimation;
+
+  /** Animation index to play. */
+  @serializable(1)
+  animation = 0;
+
+  /** Face index on which to play the animation. */
+  @serializable(1)
+  faceIndex = 0;
+
+  /** Whether to play the animation forever. */
+  @serializable(1)
+  loop = 0; //TODO boolean
+}
+
+// Returns the list of message classes defined in this file.
+function _getMessageClasses(): MessageClass[] {
+  return [
+    IAmADie,
+    RollState,
+    BulkSetup,
+    BulkData,
+    BulkDataAck,
+    TransferAnimationSet,
+    TransferAnimationSetAck,
+    TransferTestAnimationSet,
+    TransferTestAnimationSetAck,
+    DebugLog,
+    PlaySound,
+    Blink,
+    BatteryLevel,
+    Rssi,
+    NotifyUser,
+    NotifyUserAck,
+    TransferInstantAnimationSet,
+    TransferInstantAnimationSetAck,
+    PlayInstantAnimation,
+  ];
 }

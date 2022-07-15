@@ -61,6 +61,7 @@
     "jest": "^27.2.0",
     "pinst": "^2.1.6",
     "prettier": "^2.4.0",
+    "reflect-metadata": "^0.1.13",
     "ts-jest": "^27.0.5",
     "ts-loader": "^9.2.5",
     "typedoc": "^0.22.11",

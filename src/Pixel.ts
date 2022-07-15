@@ -14,7 +14,7 @@ import {
   Blink,
 } from "./Messages";
 
-import { exponentialBackOff, Mutex } from "./utils";
+import { exponentialBackOff, Mutex, safeAssign } from "./utils";
 
 /** Pixel dice service UUID. */
 export const serviceUuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
@@ -67,7 +67,8 @@ export const ConnectionEventValues = {
 } as const;
 
 /** The "enum" type for  {@link ConnectionEventValues}. */
-export type ConnectionEvent = typeof ConnectionEventValues[keyof typeof ConnectionEventValues];
+export type ConnectionEvent =
+  typeof ConnectionEventValues[keyof typeof ConnectionEventValues];
 
 /**
  * Peripheral connection event reasons.
@@ -112,7 +113,7 @@ export interface ConnectionEventData {
 /** Event map for {@link Pixel} class. */
 export interface PixelEventMap {
   message: CustomEvent<MessageOrType>;
-  connectionEvent: CustomEvent<ConnectionEventData>;
+  connectionEvent: CustomEvent<ConnectionEventData>; //TODO connectionEvent => connectionStatus
 }
 
 //TODO
@@ -326,8 +327,12 @@ export class Pixel extends EventTarget {
             // Create session
             this.log("Getting service and characteristics");
             const service = await server.getPrimaryService(serviceUuid);
-            const notifyCharacteristic = await service.getCharacteristic(notifyCharacteristicUuid);
-            const writeCharacteristic = await service.getCharacteristic(writeCharacteristicUuid);
+            const notifyCharacteristic = await service.getCharacteristic(
+              notifyCharacteristicUuid
+            );
+            const writeCharacteristic = await service.getCharacteristic(
+              writeCharacteristicUuid
+            );
             this._session = new Session(
               service,
               notifyCharacteristic,
@@ -336,7 +341,9 @@ export class Pixel extends EventTarget {
             );
 
             this.log("Subscribing");
-            await this._session.subscribe((dv: DataView) => this.onValueChanged(dv));
+            await this._session.subscribe((dv: DataView) =>
+              this.onValueChanged(dv)
+            );
 
             // Identify Pixel
             this.log("Waiting on identification message");
@@ -381,7 +388,9 @@ export class Pixel extends EventTarget {
         this._reconnect = autoReconnect;
       },
       failed: (error) => {
-        this.log(`Failed to ${autoReconnect ? "re" : ""}connect with error: ${error}`);
+        this.log(
+          `Failed to ${autoReconnect ? "re" : ""}connect with error: ${error}`
+        );
         this.notifyConnEv(
           ConnectionEventValues.FailedToConnect,
           ConnectionEventReasonValues.Timeout
@@ -425,7 +434,11 @@ export class Pixel extends EventTarget {
     listener: (this: Pixel, ev: CustomEvent<MessageOrType>) => void,
     options?: AddEventListenerOptions | boolean
   ): void {
-    this.addEventListener(`message${getMessageName(msgType)}`, listener, options);
+    this.addEventListener(
+      `message${getMessageName(msgType)}`,
+      listener,
+      options
+    );
   }
 
   /**
@@ -441,7 +454,11 @@ export class Pixel extends EventTarget {
     listener: (this: Pixel, ev: CustomEvent) => void,
     options?: EventListenerOptions | boolean
   ): void {
-    this.removeEventListener(`message${getMessageName(msgType)}`, listener, options);
+    this.removeEventListener(
+      `message${getMessageName(msgType)}`,
+      listener,
+      options
+    );
   }
 
   /**
@@ -487,11 +504,13 @@ export class Pixel extends EventTarget {
    * @param duration Total duration in milliseconds.
    * @returns A promise.
    */
-  async blink(color: number, count: number, duration = 3000): Promise<void> {
-    await this.sendAndWaitForMsg(
-      new Blink(count, color, duration),
-      MessageTypeValues.BlinkFinished
-    );
+  async blink(color: number, count = 1, duration = 1000): Promise<void> {
+    const blinkMsg = safeAssign(new Blink(), {
+      color,
+      count,
+      duration,
+    });
+    await this.sendAndWaitForMsg(blinkMsg, MessageTypeValues.BlinkFinished);
   }
 
   // Log the given message prepended with a timestamp and the Pixel name
@@ -508,7 +527,9 @@ export class Pixel extends EventTarget {
     type: K,
     data: PixelCustomEventMap[K]
   ): boolean {
-    return super.dispatchEvent(new CustomEvent<PixelCustomEventMap[K]>(type, { detail: data }));
+    return super.dispatchEvent(
+      new CustomEvent<PixelCustomEventMap[K]>(type, { detail: data })
+    );
   }
 
   // Notify of connection event
@@ -516,7 +537,10 @@ export class Pixel extends EventTarget {
     connEv: ConnectionEvent,
     reason: ConnectionEventReason = ConnectionEventReasonValues.Success
   ): boolean {
-    return this.dispatchCustomEv("connectionEvent", { event: connEv, reason: reason });
+    return this.dispatchCustomEv("connectionEvent", {
+      event: connEv,
+      reason: reason,
+    });
   }
 
   // Callback on notify characteristic value change
@@ -543,7 +567,10 @@ export class Pixel extends EventTarget {
   }
 
   // Helper method that waits for a message from Pixel
-  private waitForMsg(expectedMsgType: MessageType, timeoutMs = 5000): Promise<MessageOrType> {
+  private waitForMsg(
+    expectedMsgType: MessageType,
+    timeoutMs = 5000
+  ): Promise<MessageOrType> {
     return new Promise((resolve, reject) => {
       const onMessage = (evt: CustomEvent<MessageOrType>) => {
         resolve(evt.detail);
@@ -599,15 +626,23 @@ class Session {
 
   // Subscribes to notify characteristic and returns unsubscribe function
   async subscribe(listener: (dataView: DataView) => void): Promise<() => void> {
-    function internalListener(this: BluetoothRemoteGATTCharacteristic /*, ev: Event*/) {
+    function internalListener(
+      this: BluetoothRemoteGATTCharacteristic /*, ev: Event*/
+    ) {
       if (this.value?.buffer?.byteLength) {
         listener(this.value);
       }
     }
-    this._notify.addEventListener("characteristicvaluechanged", internalListener);
+    this._notify.addEventListener(
+      "characteristicvaluechanged",
+      internalListener
+    );
     await this._notify.startNotifications();
     return () => {
-      this._notify.removeEventListener("characteristicvaluechanged", internalListener);
+      this._notify.removeEventListener(
+        "characteristicvaluechanged",
+        internalListener
+      );
     };
   }
 
