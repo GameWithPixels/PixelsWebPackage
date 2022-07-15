@@ -1,4 +1,4 @@
-import { enumVal } from "./Utils";
+import { enumVal } from "./utils";
 
 /**
  * Lists all the Pixel dice message types.
