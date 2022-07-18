@@ -242,6 +242,7 @@ export class Pixel extends EventTarget {
     return this._connected && (this._device.gatt?.connected ?? false);
   }
 
+  /** Indicates whether the Pixel is connected but not yet ready to communicate.*/
   get initializing(): boolean {
     return this._connecting || (this.connected && !this.ready);
   }
@@ -256,8 +257,14 @@ export class Pixel extends EventTarget {
     return this._info;
   }
 
+  /** Gets the die type, or undefined if not connected. */
   get type(): DiceType | undefined {
     return this.info ? DiceTypeValues.D20 : undefined;
+  }
+
+  /** Gets the unique Pixel id for the die, or 0 if not connected. */
+  get pixelId(): number {
+    return this._info?.pixelId ?? 0;
   }
 
   /**
@@ -840,8 +847,9 @@ export class Pixel extends EventTarget {
   private onValueChanged(dataView: DataView) {
     try {
       const msgOrType = deserializeMessage(dataView.buffer);
+      const msgName = getMessageName(msgOrType);
       if (msgOrType) {
-        this.log(`Received message ${getMessageName(msgOrType)}`);
+        this.log(`Received message ${msgName} (${getMessageType(msgOrType)})`);
         if (typeof msgOrType !== "number") {
           // Log message contents
           this.log(msgOrType);
@@ -849,7 +857,7 @@ export class Pixel extends EventTarget {
         // Dispatch generic message event
         this.dispatchCustomEv("message", msgOrType);
         // Dispatch specific message event
-        const name = `message${getMessageName(msgOrType)}`;
+        const name = `message${msgName}`;
         this.dispatchEvent(new CustomEvent(name, { detail: msgOrType }));
       } else {
         this.log("Received invalid message!");
@@ -920,7 +928,8 @@ class Session {
 
   // Sends a message
   async send(msgOrType: MessageOrType, withoutResponse?: boolean) {
-    this.log(`Sending message ${getMessageName(msgOrType)}`);
+    const msgName = getMessageName(msgOrType);
+    this.log(`Sending message ${msgName} (${getMessageType(msgOrType)})`);
     const data = serializeMessage(msgOrType);
     const promise = withoutResponse
       ? this._write.writeValueWithoutResponse(data)
