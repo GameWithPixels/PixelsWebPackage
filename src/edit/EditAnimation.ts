@@ -12,7 +12,7 @@ export default abstract class EditAnimation extends Editable {
 
   // Float, in seconds
   abstract get duration(): number;
-  abstract set duration(value: number);
+  abstract set duration(_value: number);
 
   constructor(name = "") {
     super();
@@ -20,12 +20,12 @@ export default abstract class EditAnimation extends Editable {
   }
 
   abstract toAnimation(
-    editSet: EditDataSet,
-    bits: AnimationBits
+    _editSet: EditDataSet,
+    _bits: AnimationBits
   ): AnimationPreset;
   abstract duplicate(): EditAnimation;
 
-  requiresPattern(pattern: EditPattern): { asRgb: boolean } | undefined {
+  requiresPattern(_pattern: EditPattern): { asRgb: boolean } | undefined {
     return undefined;
   }
 }

@@ -11,11 +11,12 @@ export default abstract class EditAction extends Editable {
   abstract duplicate(): EditAction;
 
   replaceAnimation(
-    oldAnimation: EditAnimation,
-    newAnimation: EditAnimation
+    _oldAnimation: EditAnimation,
+    _newAnimation: EditAnimation
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
   ): void {}
 
-  requiresAnimation(animation: EditAnimation): boolean {
+  requiresAnimation(_animation: EditAnimation): boolean {
     return false;
   }
 

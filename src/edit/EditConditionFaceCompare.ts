@@ -30,7 +30,7 @@ export default class EditConditionFaceCompare extends EditCondition {
     this.faceIndex = faceIndex;
   }
 
-  toCondition(editSet: EditDataSet, set: DataSet): Condition {
+  toCondition(_editSet: EditDataSet, _set: DataSet): Condition {
     return safeAssign(new ConditionFaceCompare(), {
       faceIndex: this.faceIndex,
       flags: this.flags,

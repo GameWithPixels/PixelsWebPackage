@@ -23,7 +23,7 @@ export default class EditConditionRolling extends EditCondition {
     this.recheckAfter = recheckAfter;
   }
 
-  toCondition(editSet: EditDataSet, set: DataSet): Condition {
+  toCondition(_editSet: EditDataSet, _set: DataSet): Condition {
     return safeAssign(new ConditionRolling(), {
       repeatPeriodMs: Math.round(this.recheckAfter * 1000),
     });

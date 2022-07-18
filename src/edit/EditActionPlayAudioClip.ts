@@ -21,7 +21,7 @@ export default class EditActionPlayAudioClip extends EditAction {
     return ActionTypeValues.PlayAnimation;
   }
 
-  toAction(editSet: EditDataSet, set: DataSet): Action {
+  toAction(_editSet: EditDataSet, _set: DataSet): Action {
     return safeAssign(new ActionPlayAudioClip(), {
       clipId: this.clip?.id ?? 0,
     });

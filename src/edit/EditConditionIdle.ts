@@ -23,7 +23,7 @@ export default class EditConditionIdle extends EditCondition {
     this.period = period;
   }
 
-  toCondition(editSet: EditDataSet, set: DataSet): Condition {
+  toCondition(_editSet: EditDataSet, _set: DataSet): Condition {
     return safeAssign(new ConditionIdle(), {
       repeatPeriodMs: Math.round(this.period * 1000),
     });

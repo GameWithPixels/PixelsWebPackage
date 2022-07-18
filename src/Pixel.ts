@@ -51,6 +51,8 @@ function toUuid128bits(shortUuid: number): string {
   );
 }
 
+//TODO unused for now
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const dfuServiceUuid = toUuid128bits(0xfe59);
 
 /**

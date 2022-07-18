@@ -11,7 +11,7 @@ export default class EditConditionHandling extends EditCondition {
     return ConditionTypeValues.Handling;
   }
 
-  toCondition(editSet: EditDataSet, set: DataSet): Condition {
+  toCondition(_editSet: EditDataSet, _set: DataSet): Condition {
     return new ConditionHandling();
   }
 

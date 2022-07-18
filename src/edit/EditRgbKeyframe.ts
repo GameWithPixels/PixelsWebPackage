@@ -17,7 +17,7 @@ export default class EditRgbKeyframe extends Editable {
     this.color = color;
   }
 
-  toRgbKeyframe(editSet: EditDataSet, bits: AnimationBits): RgbKeyframe {
+  toRgbKeyframe(_editSet: EditDataSet, bits: AnimationBits): RgbKeyframe {
     const kf = new RgbKeyframe();
     // Add the color to the palette if not already there, otherwise grab the color index
     const colorIndex = EditColor.toColorIndex(bits.palette, this.color);
@@ -25,7 +25,7 @@ export default class EditRgbKeyframe extends Editable {
     return kf;
   }
 
-  toKeyframe(editSet: EditDataSet, bits: AnimationBits): SimpleKeyframe {
+  toKeyframe(_editSet: EditDataSet, _bits: AnimationBits): SimpleKeyframe {
     const kf = new SimpleKeyframe();
     // Get the intensity from the color and scale
     kf.setTimeAndIntensity(this.time, this.color.desaturate() * 255);

@@ -25,7 +25,7 @@ export default class EditConditionConnectionState extends EditCondition {
     this.flags = flags;
   }
 
-  toCondition(editSet: EditDataSet, set: DataSet): Condition {
+  toCondition(_editSet: EditDataSet, _set: DataSet): Condition {
     return safeAssign(new ConditionConnectionState(), {
       flags: this.flags,
     });

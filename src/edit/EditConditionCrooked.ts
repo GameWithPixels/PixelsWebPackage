@@ -11,7 +11,7 @@ export default class EditConditionCrooked extends EditCondition {
     return ConditionTypeValues.Crooked;
   }
 
-  toCondition(editSet: EditDataSet, set: DataSet): Condition {
+  toCondition(_editSet: EditDataSet, _set: DataSet): Condition {
     return new ConditionCrooked();
   }
 

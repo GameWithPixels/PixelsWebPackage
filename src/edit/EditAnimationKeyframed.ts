@@ -50,7 +50,7 @@ export default class EditAnimationKeyframed extends EditAnimation {
     this.flowOrder = options?.flowOrder ?? false;
   }
 
-  toAnimation(editSet: EditDataSet, bits: AnimationBits): AnimationPreset {
+  toAnimation(editSet: EditDataSet, _bits: AnimationBits): AnimationPreset {
     return safeAssign(new AnimationKeyframed(), {
       duration: this.duration * 1000, // stored in milliseconds
       speedMultiplier256: this._speedMultiplier * 256,

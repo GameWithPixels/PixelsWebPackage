@@ -32,7 +32,7 @@ export default class EditActionPlayAnimation extends EditAction {
     return ActionTypeValues.PlayAnimation;
   }
 
-  toAction(editSet: EditDataSet, set: DataSet): Action {
+  toAction(editSet: EditDataSet, _set: DataSet): Action {
     return safeAssign(new ActionPlayAnimation(), {
       animIndex: this.animation
         ? editSet.animations.indexOf(this.animation)

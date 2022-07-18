@@ -51,8 +51,8 @@ export type ExponentialBackOffParams = {
   retries: number;
   delay: number;
   executor: () => Promise<unknown>;
-  resolved?: (result: unknown) => void;
-  failed?: (error: unknown) => void;
+  resolved?: (_result: unknown) => void;
+  failed?: (_error: unknown) => void;
 };
 
 /**

@@ -31,7 +31,7 @@ export default class EditConditionBatteryState extends EditCondition {
     this.recheckAfter = recheckAfter;
   }
 
-  toCondition(editSet: EditDataSet, set: DataSet): Condition {
+  toCondition(_editSet: EditDataSet, _set: DataSet): Condition {
     return safeAssign(new ConditionBatteryState(), {
       flags: this.flags,
       repeatPeriodMs: Math.round(this.recheckAfter * 1000),

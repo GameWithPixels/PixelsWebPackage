@@ -63,7 +63,7 @@ export default class EditAnimationRainbow extends EditAnimation {
     this.traveling = options?.traveling ?? true;
   }
 
-  toAnimation(editSet: EditDataSet, bits: AnimationBits): AnimationPreset {
+  toAnimation(_editSet: EditDataSet, _bits: AnimationBits): AnimationPreset {
     return safeAssign(new AnimationRainbow(), {
       duration: this.duration * 1000,
       faceMask: this.faces,

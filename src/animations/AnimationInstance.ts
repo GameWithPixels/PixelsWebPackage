@@ -6,7 +6,7 @@ export default abstract class AnimationInstance {
   private _animationBits: AnimationBits;
   private _startTime = 0;
   private _remapFace = 0;
-  private _loop: boolean = false;
+  private _loop = false;
 
   //protected _set: DataSet;
 

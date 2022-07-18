@@ -24,7 +24,7 @@ export default class EditConditionHelloGoodbye extends EditCondition {
     this.flags = flags;
   }
 
-  toCondition(editSet: EditDataSet, set: DataSet): Condition {
+  toCondition(_editSet: EditDataSet, _set: DataSet): Condition {
     return safeAssign(new ConditionHelloGoodbye(), {
       flags: this.flags,
     });
