@@ -36,13 +36,7 @@ import {
 } from "./Messages";
 import { byteSizeOf } from "./Serializable";
 
-import {
-  assert,
-  exponentialBackOff,
-  Mutex,
-  safeAssign,
-  waitUntil,
-} from "./utils";
+import { assert, exponentialBackOff, Mutex, safeAssign } from "./utils";
 
 function toUuid128bits(shortUuid: number): string {
   return (
@@ -86,7 +80,8 @@ export const ConnectionEventValues = {
   /** Raised when the peripheral fails to connect, the reason for the failure is also given. */
   FailedToConnect: "failedToConnect",
 
-  /** Raised after a Connected event, once the required services have been discovered. */
+  /** Raised after a Connected event, once the required services have been discovered
+   * and we have die info. */
   Ready: "ready",
 
   /** Raised at the beginning of a user initiated disconnect. */
@@ -392,7 +387,7 @@ export class Pixel extends EventTarget {
             if (!this._session) {
               throw {
                 name: "NetworkError",
-                message: "Got disconnected while identifying",
+                message: `Pixel '${this._name}' got disconnected while identifying`,
               };
             }
 
@@ -414,6 +409,7 @@ export class Pixel extends EventTarget {
 
     // Attempt to connect multiple times when autoReconnect is true
     const autoReconnect = this._reconnect;
+    const name = this._name;
     // Prevent another automatic reconnection to happen while already doing it
     this._reconnect = false;
     await exponentialBackOff({
@@ -426,7 +422,8 @@ export class Pixel extends EventTarget {
       },
       failed: (error) => {
         this.log(
-          `Failed to ${autoReconnect ? "re" : ""}connect with error: ${error}`
+          `Failed to ${autoReconnect ? "re" : ""}connect to ` +
+            `Pixel '${name}' with error: ${error}`
         );
         this.notifyConnEv(
           ConnectionEventValues.FailedToConnect,
@@ -515,7 +512,7 @@ export class Pixel extends EventTarget {
     if (!session) {
       throw {
         name: "NetworkError",
-        message: "Pixel not ready",
+        message: `Pixel '${this._name}' not ready`,
       };
     }
     const result = await Promise.all([
@@ -636,11 +633,15 @@ export class Pixel extends EventTarget {
     if (transferAck.result) {
       // Upload data
       const data = dataSet.toByteArray();
+      assert(
+        data.length === dataSet.computeDataSetByteSize(),
+        "Incorrect computation of computeDataSetByteSize()"
+      );
       const hash = DataSet.computeHash(data);
       const hashStr = (hash >>> 0).toString(16).toUpperCase();
       this.log(
         "Ready to receive dataset, " +
-          `byte array should be ${dataSet.computeDataSetByteSize()} bytes ` +
+          `byte array should be ${data.length} bytes ` +
           `and hash 0x${hashStr}`
       );
 
@@ -649,7 +650,13 @@ export class Pixel extends EventTarget {
         data
       );
     } else {
-      throw new Error("Transfer refused, not enough memory");
+      const dataSize = dataSet.computeDataSetByteSize();
+      throw {
+        name: "NetworkError",
+        message:
+          `Pixel '${this._name}' doesn't have enough memory to ` +
+          `transfer ${dataSize} bytes`,
+      };
     }
   }
 
@@ -669,12 +676,12 @@ export class Pixel extends EventTarget {
       hash,
     });
 
-    const resp = await this.sendAndWaitForResponseObj(
+    const ack = await this.sendAndWaitForResponseObj(
       prepareDie,
       TransferTestAnimationSetAck
     );
 
-    switch (resp.ackType) {
+    switch (ack.ackType) {
       case TransferInstantAnimationsSetAckTypeValues.Download:
         {
           // Upload data
@@ -697,7 +704,10 @@ export class Pixel extends EventTarget {
         break;
 
       default:
-        throw new Error(`Got unknown ackType: ${resp.ackType}`);
+        throw {
+          name: "NetworkError",
+          message: `Pixel '${this._name}' got unknown ackType: ${ack.ackType}`,
+        };
     }
   }
 
@@ -749,7 +759,10 @@ export class Pixel extends EventTarget {
         break;
 
       default:
-        throw new Error(`Got unknown ackType: ${ack.ackType}`);
+        throw {
+          name: "NetworkError",
+          message: `Pixel '${this._name}' got unknown ackType: ${ack.ackType}`,
+        };
     }
   }
 
@@ -796,16 +809,40 @@ export class Pixel extends EventTarget {
     data: ArrayBuffer
   ): Promise<void> {
     let programmingFinished = false;
-    const onFinished = () => (programmingFinished = true);
+    let stopWaiting: (() => void) | undefined;
+    const onFinished = () => {
+      programmingFinished = true;
+      if (stopWaiting) {
+        stopWaiting();
+        stopWaiting = undefined;
+      }
+    };
     this.addMessageListener(ackType, onFinished, { once: true });
     try {
       await this.uploadBulkData(data, (p) => this.log(`Upload progress: ${p}`));
       this.log("Done sending dataset, waiting for Pixel to finish programming");
 
-      await waitUntil(() => programmingFinished, ackMessageTimeout);
-
-      if (!programmingFinished) {
-        throw Error("Timeout waiting on Pixel to confirm programming");
+      try {
+        const promise = new Promise<void>((resolve, reject) => {
+          if (programmingFinished) {
+            // Programming may already be finished
+            resolve();
+          } else {
+            const timeoutId = setTimeout(() => {
+              reject();
+            }, ackMessageTimeout);
+            stopWaiting = () => {
+              clearTimeout(timeoutId);
+              resolve();
+            };
+          }
+        });
+        await promise;
+      } catch (error) {
+        throw {
+          name: "NetworkError",
+          message: `Timeout waiting on Pixel '${this._name}' to confirm programming`,
+        };
       }
       this.log("Programming done");
     } finally {
@@ -878,7 +915,12 @@ export class Pixel extends EventTarget {
       };
       setTimeout(() => {
         this.removeMessageListener(expectedMsgType, onMessage);
-        reject(new Error("Timeout waiting on message"));
+        reject(
+          new Error(
+            `Timeout of ${timeoutMs}ms waiting on message ` +
+              getMessageName(expectedMsgType)
+          )
+        );
       }, timeoutMs);
       this.addMessageListener(expectedMsgType, onMessage, { once: true });
     });

@@ -270,28 +270,3 @@ export function decodeUtf8(bytes: Uint8Array): string {
 export async function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
-
-/**
- * Actively evaluate the given condition until it returns true
- * or we're passed the timeout.
- * @param condition Condition to evaluate.
- * @param timeout Timeout before giving up, in milliseconds.
- * @param pollingPeriod Polling period in milliseconds.
- * @returns A promise that resolves to a boolean with the last value of the condition.
- */
-export async function waitUntil(
-  condition: () => boolean,
-  timeout: number,
-  pollingPeriod = 10
-): Promise<boolean> {
-  const stopTime = Date.now() + timeout;
-  while (true) {
-    if (condition()) {
-      return true;
-    }
-    if (Date.now() >= stopTime) {
-      return false;
-    }
-    await delay(pollingPeriod);
-  }
-}

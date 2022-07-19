@@ -47,8 +47,13 @@ export default class AppDataSet {
   }
 
   extractForAnimation(animation: EditAnimation): EditDataSet {
+    // The EditDataSet that will only contain the given animation and its patterns
     const dataSet = new EditDataSet();
+
+    // Add the single animation we need
     dataSet.animations.push(animation);
+
+    // Include all patterns used by the animations
     this._patterns.forEach((pattern) => {
       const required = animation.requiresPattern(pattern);
       if (required) {
@@ -67,7 +72,8 @@ export default class AppDataSet {
       throw new Error("Profile not in AppDataSet");
     }
 
-    // Generate the data to be uploaded
+    // The EditDataSet that will only contain the animations and their patterns
+    // for the given profile
     const editSet = new EditDataSet({
       profile: profile.duplicate(),
     });
@@ -111,8 +117,10 @@ export default class AppDataSet {
       });
     }
 
+    // Copy our animations list to the resulting EditDataSet
     editSet.animations.push(...animations);
 
+    // Include all patterns used by the animations
     this._patterns.forEach((pattern) => {
       let asRgb = false;
       if (
