@@ -635,6 +635,10 @@ export class PlayInstantAnimation implements PixelMessage {
   /** Whether to play the animation forever. */
   @serializable(1)
   loop = false;
+
+  /** Whether to stop other animations that are playing. */
+  @serializable(1)
+  stopOthers = false;
 }
 
 // Returns the list of message classes defined in this file.

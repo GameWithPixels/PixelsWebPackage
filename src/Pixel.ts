@@ -222,7 +222,7 @@ export class Pixel extends EventTarget {
   private readonly _name: string;
   private readonly _connMtx = new Mutex();
   private _connected = false;
-  private _connecting = false;
+  private _connecting = false; // TODO Merge with above?
   private _reconnect = false;
   private _session?: Session = undefined;
   private _info?: IAmADie = undefined;
@@ -711,6 +711,7 @@ export class Pixel extends EventTarget {
     }
   }
 
+  // animations: AnimationPreset[] , animationBits: AnimationBits
   async transferInstantAnimations(dataSet: DataSet): Promise<void> {
     assert(dataSet.animations.length >= 1, "No animation in DataSet");
 
@@ -766,9 +767,13 @@ export class Pixel extends EventTarget {
     }
   }
 
-  async playInstantAnimation(animIndex: number): Promise<void> {
+  async playInstantAnimation(
+    animIndex: number,
+    stopOthers = false
+  ): Promise<void> {
     const play = new PlayInstantAnimation();
     play.animation = animIndex;
+    play.stopOthers = stopOthers;
     await this._session?.send(play);
   }
 
