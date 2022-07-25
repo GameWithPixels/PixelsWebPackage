@@ -46,6 +46,22 @@ export default class AppDataSet {
     this._defaultProfile = options?.defaultProfile ?? new EditProfile();
   }
 
+  findPattern(name: string): EditPattern | undefined {
+    return this._patterns.find((p) => p.name === name);
+  }
+
+  findAnimation(name: string): EditAnimation | undefined {
+    return this._animations.find((p) => p.name === name);
+  }
+
+  findAudioClip(name: string): EditAudioClip | undefined {
+    return this._audioClips.find((p) => p.name === name);
+  }
+
+  findProfile(name: string): EditProfile | undefined {
+    return this._profiles.find((p) => p.name === name);
+  }
+
   extractForAnimation(animation: EditAnimation): EditDataSet {
     // The EditDataSet that will only contain the given animation and its patterns
     const dataSet = new EditDataSet();
@@ -67,6 +83,34 @@ export default class AppDataSet {
     return dataSet;
   }
 
+  extractForAnimations(animations: EditAnimation[]): EditDataSet {
+    // The EditDataSet that will only contain the given animation and its patterns
+    const dataSet = new EditDataSet();
+
+    // Add the single animation we need
+    dataSet.animations.push(...animations);
+
+    // Include all patterns used by the animations
+    this._patterns.forEach((pattern) => {
+      let asRgb = false;
+      if (
+        animations.find((anim) => {
+          const required = anim.requiresPattern(pattern);
+          asRgb = required?.asRgb ?? false;
+          return !!required;
+        })
+      ) {
+        if (asRgb) {
+          dataSet.rgbPatterns.push(pattern);
+        } else {
+          dataSet.patterns.push(pattern);
+        }
+      }
+    });
+
+    return dataSet;
+  }
+
   extractForProfile(profile: EditProfile): EditDataSet {
     if (!this._profiles.includes(profile)) {
       throw new Error("Profile not in AppDataSet");
@@ -74,12 +118,12 @@ export default class AppDataSet {
 
     // The EditDataSet that will only contain the animations and their patterns
     // for the given profile
-    const editSet = new EditDataSet({
+    const dataSet = new EditDataSet({
       profile: profile.duplicate(),
     });
 
     // And add the animations that the given profile uses
-    const animations = editSet.profile.collectAnimations();
+    const animations = dataSet.profile.collectAnimations();
 
     // Add default rules and animations to profile / set
     if (this._defaultProfile) {
@@ -90,11 +134,11 @@ export default class AppDataSet {
         const cond = rule.condition;
         if (
           cond &&
-          !editSet.profile.rules.find((r) => r.condition?.type === cond.type)
+          !dataSet.profile.rules.find((r) => r.condition?.type === cond.type)
         ) {
           const ruleCopy = rule.duplicate();
           copiedRules.push(ruleCopy);
-          editSet.profile.rules.push(ruleCopy);
+          dataSet.profile.rules.push(ruleCopy);
         }
       });
 
@@ -118,7 +162,7 @@ export default class AppDataSet {
     }
 
     // Copy our animations list to the resulting EditDataSet
-    editSet.animations.push(...animations);
+    dataSet.animations.push(...animations);
 
     // Include all patterns used by the animations
     this._patterns.forEach((pattern) => {
@@ -131,13 +175,13 @@ export default class AppDataSet {
         })
       ) {
         if (asRgb) {
-          editSet.rgbPatterns.push(pattern);
+          dataSet.rgbPatterns.push(pattern);
         } else {
-          editSet.patterns.push(pattern);
+          dataSet.patterns.push(pattern);
         }
       }
     });
 
-    return editSet;
+    return dataSet;
   }
 }
