@@ -495,6 +495,18 @@ export class Pixel extends EventTarget {
     );
   }
 
+  async sendMessage(msgOrTypeToSend: MessageOrType): Promise<void> {
+    // Get the session object, throws an error if invalid
+    const session = this._session;
+    if (!session) {
+      throw {
+        name: "NetworkError",
+        message: `Pixel '${this._name}' not ready`,
+      };
+    }
+    await session.send(msgOrTypeToSend);
+  }
+
   /**
    * Send a message and wait for a specific reply.
    * @param msgOrTypeToSend
@@ -588,7 +600,6 @@ export class Pixel extends EventTarget {
    * @param options.count Number of blinks.
    * @param options.duration Total duration in milliseconds.
    * @param options.fade Amount of in and out fading, 0: sharp transition, 1: max fading.
-   * @param options.stopOthers Whether to request other animations to stop playing.
    * @returns A promise.
    */
   async blink(
@@ -597,7 +608,6 @@ export class Pixel extends EventTarget {
       count?: number;
       duration?: number;
       fade?: number;
-      stopOthers?: boolean;
     }
   ): Promise<void> {
     const blinkMsg = safeAssign(new Blink(), {
@@ -605,12 +615,15 @@ export class Pixel extends EventTarget {
       count: options?.count ?? 1,
       duration: options?.duration ?? 1000,
       fade: 255 * (options?.fade ?? 0),
-      stopOthers: options?.stopOthers ?? false,
     });
     await this.sendAndWaitForResponse(
       blinkMsg,
       MessageTypeValues.BlinkFinished
     );
+  }
+
+  async stopAllAnimations(): Promise<void> {
+    await this.sendMessage(MessageTypeValues.StopAllAnimations);
   }
 
   async transferDataSet(
@@ -791,13 +804,9 @@ export class Pixel extends EventTarget {
     }
   }
 
-  async playInstantAnimation(
-    animIndex: number,
-    stopOthers = false
-  ): Promise<void> {
+  async playInstantAnimation(animIndex: number): Promise<void> {
     const play = new PlayInstantAnimation();
     play.animation = animIndex;
-    play.stopOthers = stopOthers;
     await this._session?.send(play);
   }
 

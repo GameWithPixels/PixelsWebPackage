@@ -73,6 +73,7 @@ export const MessageTypeValues = {
   TransferInstantAnimationSetAck: enumValue(),
   TransferInstantAnimationSetFinished: enumValue(),
   PlayInstantAnimation: enumValue(),
+  StopAllAnimations: enumValue(),
 
   // Testing
   TestBulkSend: enumValue(),
@@ -515,10 +516,6 @@ export class Blink implements PixelMessage {
   /** Amount of in and out fading, 0: sharp transition, 255: max fading */
   @serializable(1)
   fade = 0;
-
-  /** Whether to request other animations to stop playing. */
-  @serializable(1)
-  stopOthers = false;
 }
 
 /** Message send by a Pixel to notify of its battery level and state. */
@@ -643,10 +640,6 @@ export class PlayInstantAnimation implements PixelMessage {
   /** Whether to play the animation forever. */
   @serializable(1)
   loop = false;
-
-  /** Whether to stop other animations that are playing. */
-  @serializable(1)
-  stopOthers = false;
 }
 
 // Returns the list of message classes defined in this file.
