@@ -504,13 +504,21 @@ export class Blink implements PixelMessage {
   @serializable(1)
   count = 0;
 
+  /** Total duration in milliseconds. */
+  @serializable(2)
+  duration = 0;
+
   /** Color to blink. */
   @serializable(4)
   color = 0;
 
-  /** Total duration in milliseconds. */
-  @serializable(2)
-  duration = 0;
+  /** Amount of in and out fading, 0: sharp transition, 255: max fading */
+  @serializable(1)
+  fade = 0;
+
+  /** Whether to request other animations to stop playing. */
+  @serializable(1)
+  stopOthers = false;
 }
 
 /** Message send by a Pixel to notify of its battery level and state. */

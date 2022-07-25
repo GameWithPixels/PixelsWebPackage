@@ -585,15 +585,27 @@ export class Pixel extends EventTarget {
   /**
    * Requests the Pixel to blink and wait for a confirmation.
    * @param color Blink color.
-   * @param count Number of blinks.
-   * @param duration Total duration in milliseconds.
+   * @param options.count Number of blinks.
+   * @param options.duration Total duration in milliseconds.
+   * @param options.fade Amount of in and out fading, 0: sharp transition, 1: max fading.
+   * @param options.stopOthers Whether to request other animations to stop playing.
    * @returns A promise.
    */
-  async blink(color: Color, count = 1, duration = 1000): Promise<void> {
+  async blink(
+    color: Color,
+    options?: {
+      count?: number;
+      duration?: number;
+      fade?: number;
+      stopOthers?: boolean;
+    }
+  ): Promise<void> {
     const blinkMsg = safeAssign(new Blink(), {
       color: toColor32(color),
-      count,
-      duration,
+      count: options?.count ?? 1,
+      duration: options?.duration ?? 1000,
+      fade: 255 * (options?.fade ?? 0),
+      stopOthers: options?.stopOthers ?? false,
     });
     await this.sendAndWaitForResponse(
       blinkMsg,
@@ -601,7 +613,10 @@ export class Pixel extends EventTarget {
     );
   }
 
-  async transferDataSet(dataSet: DataSet): Promise<void> {
+  async transferDataSet(
+    dataSet: DataSet,
+    progressCallback?: (progress: number) => void
+  ): Promise<void> {
     const transferMsg = safeAssign(new TransferAnimationSet(), {
       paletteSize: dataSet.animationBits.getPaletteSize(),
       rgbKeyFrameCount: dataSet.animationBits.getRgbKeyframeCount(),
@@ -647,7 +662,8 @@ export class Pixel extends EventTarget {
 
       await this.uploadDataSet(
         MessageTypeValues.TransferAnimationSetFinished,
-        data
+        data,
+        progressCallback
       );
     } else {
       const dataSize = dataSet.computeDataSetByteSize();
@@ -660,7 +676,10 @@ export class Pixel extends EventTarget {
     }
   }
 
-  async playTestAnimation(dataSet: DataSet): Promise<void> {
+  async playTestAnimation(
+    dataSet: DataSet,
+    progressCallback?: (progress: number) => void
+  ): Promise<void> {
     assert(dataSet.animations.length >= 1, "No animation in DataSet");
 
     // Prepare the Pixel
@@ -693,7 +712,8 @@ export class Pixel extends EventTarget {
           );
           await this.uploadDataSet(
             MessageTypeValues.TransferTestAnimationSetFinished,
-            data
+            data,
+            progressCallback
           );
         }
         break;
@@ -712,7 +732,10 @@ export class Pixel extends EventTarget {
   }
 
   // animations: AnimationPreset[] , animationBits: AnimationBits
-  async transferInstantAnimations(dataSet: DataSet): Promise<void> {
+  async transferInstantAnimations(
+    dataSet: DataSet,
+    progressCallback?: (progress: number) => void
+  ): Promise<void> {
     assert(dataSet.animations.length >= 1, "No animation in DataSet");
 
     // Prepare the Pixel
@@ -749,7 +772,8 @@ export class Pixel extends EventTarget {
           );
           await this.uploadDataSet(
             MessageTypeValues.TransferInstantAnimationSetFinished,
-            data
+            data,
+            progressCallback
           );
         }
         break;
@@ -811,7 +835,8 @@ export class Pixel extends EventTarget {
 
   private async uploadDataSet(
     ackType: MessageType,
-    data: ArrayBuffer
+    data: ArrayBuffer,
+    progressCallback?: (progress: number) => void
   ): Promise<void> {
     let programmingFinished = false;
     let stopWaiting: (() => void) | undefined;
@@ -824,7 +849,7 @@ export class Pixel extends EventTarget {
     };
     this.addMessageListener(ackType, onFinished, { once: true });
     try {
-      await this.uploadBulkData(data, (p) => this.log(`Upload progress: ${p}`));
+      await this.uploadBulkData(data, progressCallback);
       this.log("Done sending dataset, waiting for Pixel to finish programming");
 
       try {
@@ -860,7 +885,7 @@ export class Pixel extends EventTarget {
     if (isMessage(msg)) {
       console.log(msg);
     } else {
-      console.log(`[Pixel ${this._name}] ${msg}`);
+      console.log(`[Pixel ${this._name}]`, msg);
     }
   }
 
