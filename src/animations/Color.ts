@@ -57,8 +57,20 @@ export default class Color {
   static blue = new Color(0, 0, 1);
   static white = new Color(1, 1, 1);
   static black = new Color(0, 0, 0);
-  static yellow = new Color(1, 0.921568632, 0.0156862754);
   static cyan = new Color(0, 1, 1);
   static magenta = new Color(1, 0, 1);
+  static yellow = new Color(1, 0.922, 0.016);
+  static orange = new Color(1, 0.647, 0);
+  static brightGreen = new Color(0.667, 1, 0);
+  static darkRed = new Color(0.35, 0, 0);
+  static darkGreen = new Color(0, 0.35, 0);
+  static darkBlue = new Color(0, 0, 0.35);
+  static darkWhite = new Color(0.35, 0.35, 0.35);
+  static darkBlack = new Color(0, 0, 0);
+  static darkYellow = new Color(0.35, 0.3, 0.005);
+  static darkCyan = new Color(0, 0.35, 0.35);
+  static darkMagenta = new Color(0.35, 0, 0.35);
+  static lightGray = new Color(0.75, 0.75, 0.75);
   static gray = new Color(0.5, 0.5, 0.5);
+  static darkGray = new Color(0.25, 0.25, 0.25);
 }

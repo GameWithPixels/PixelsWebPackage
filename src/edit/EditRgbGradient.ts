@@ -1,5 +1,6 @@
 import EditRgbKeyframe from "./EditRgbKeyframe";
 import Editable from "./Editable";
+import Color from "../animations/Color";
 
 export default class EditRgbGradient extends Editable {
   readonly keyframes: EditRgbKeyframe[];
@@ -37,5 +38,23 @@ export default class EditRgbGradient extends Editable {
       });
     }
     return track;
+  }
+
+  static createFromKeyFrames(
+    keyframes: {
+      time: number;
+      color: Color;
+    }[]
+  ): EditRgbGradient {
+    const rgbKeyframes = keyframes
+      .sort((kf1, kf2) => kf1.time - kf2.time)
+      .map((kf) => new EditRgbKeyframe(kf.time, kf.color));
+    if (!rgbKeyframes.length || rgbKeyframes[0].time > 0) {
+      rgbKeyframes.splice(0, 0, new EditRgbKeyframe(0));
+    }
+    if (!rgbKeyframes.length || keyframes[keyframes.length - 1].time < 1) {
+      rgbKeyframes.push(new EditRgbKeyframe(1));
+    }
+    return new EditRgbGradient(rgbKeyframes);
   }
 }
